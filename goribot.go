@@ -29,6 +29,7 @@ type Spider struct {
 	UserAgent      string
 	ThreadPoolSize uint
 	DepthFirst     bool
+	RandSleepRange [2]time.Duration
 	Downloader     func(*Request) (*Response, error)
 
 	pipeline     []PipelineInterface
@@ -94,6 +95,7 @@ func (s *Spider) Run() {
 		} else {
 			s.taskChan <- s.taskQueue.Pop()
 			s.workingThread += 1
+			randSleep(s.RandSleepRange[0], s.RandSleepRange[1])
 		}
 	}
 	s.taskFinished = true
@@ -203,4 +205,11 @@ func (s *Spider) NewItem(item interface{}) {
 			return
 		}
 	}
+}
+
+func randSleep(min, max time.Duration) {
+	if min >= max || max == 0 {
+		return
+	}
+	time.Sleep(time.Duration(rand.Int63n(int64(max)-int64(min)) + int64(min)))
 }
