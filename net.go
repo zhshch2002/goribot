@@ -2,6 +2,7 @@ package goribot
 
 import (
 	"bytes"
+	"github.com/PuerkitoBio/goquery"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -16,6 +17,7 @@ type Request struct {
 	Body    []byte
 	Proxies string
 	Timeout time.Duration
+	Handler []ResponseHandler
 }
 
 func NewGetRequest(rawurl string) (*Request, error) {
@@ -65,6 +67,7 @@ type Response struct {
 	Headers      http.Header
 	Body         []byte
 	Text         string
+	Html         *goquery.Document
 }
 
 func DoRequest(r *Request) (*Response, error) {
@@ -106,6 +109,9 @@ func DoRequest(r *Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	html, _ := goquery.NewDocumentFromReader(bytes.NewReader(body))
+
 	return &Response{
 		Request:      r,
 		HttpResponse: resp,
@@ -113,5 +119,6 @@ func DoRequest(r *Request) (*Response, error) {
 		Headers:      resp.Header,
 		Body:         body,
 		Text:         string(body),
+		Html:         html,
 	}, nil
 }

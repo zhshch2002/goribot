@@ -2,17 +2,15 @@ package goribot
 
 import (
 	"encoding/json"
-	"github.com/PuerkitoBio/goquery"
 	"log"
+	"math/rand"
 	"net/url"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 )
 
 const (
-	UserAgent      = "GoRibot" //TODO 设置UA
+	UserAgent      = "GoRibot"
 	ThreadPoolSize = uint(15)
 )
 
@@ -25,53 +23,10 @@ const (
 	JsonPostData                    // application/json
 )
 
-type HtmlHandler struct {
-	Selector string
-	UrlReg   *regexp.Regexp
-	fun      func(DOM *HTMLElement)
-}
-
-type ResponseHandler struct {
-	UrlReg *regexp.Regexp
-	fun    func(DOM *Response)
-}
-type TaskQueue struct {
-	sync.Mutex
-	items []*Request
-}
-
-func NewTaskQueue() *TaskQueue {
-	return &TaskQueue{
-		Mutex: sync.Mutex{},
-	}
-}
-
-func (s *TaskQueue) Push(item *Request) {
-	s.Lock()
-	s.items = append(s.items, item)
-	s.Unlock()
-}
-func (s *TaskQueue) PushInHead(item *Request) {
-	s.Lock()
-	s.items = append([]*Request{item}, s.items...)
-	s.Unlock()
-}
-func (s *TaskQueue) Pop() *Request {
-	s.Lock()
-	item := s.items[0]
-	s.items = s.items[1:]
-	s.Unlock()
-	return item
-}
-
-func (s *TaskQueue) IsEmpty() bool {
-	return len(s.items) == 0
-}
+type ResponseHandler func(r *Response)
 
 type Spider struct {
 	UserAgent      string
-	MaxVisit       uint //TODO 实现
-	MaxDepth       uint //TODO 实现
 	ThreadPoolSize uint
 	DepthFirst     bool
 	Downloader     func(*Request) (*Response, error)
@@ -82,9 +37,7 @@ type Spider struct {
 	taskFinished bool
 	wg           sync.WaitGroup
 
-	onHtmlHandlers     []HtmlHandler
-	onResponseHandlers []ResponseHandler
-	workingThread      int32
+	workingThread int32
 }
 
 func NewSpider() *Spider {
@@ -92,6 +45,7 @@ func NewSpider() *Spider {
 		taskQueue:      NewTaskQueue(),
 		Downloader:     DoRequest,
 		UserAgent:      UserAgent,
+		DepthFirst:     false,
 		ThreadPoolSize: ThreadPoolSize,
 	}
 }
@@ -146,67 +100,9 @@ func (s *Spider) Run() {
 	s.wg.Wait()
 }
 func (s *Spider) handleResponse(response *Response) {
-	for _, h := range s.onResponseHandlers {
-		if h.UrlReg != nil {
-			if ok := h.UrlReg.MatchString(response.HttpResponse.Request.URL.String()); !ok {
-				continue
-			}
-		}
-		h.fun(response)
+	for _, h := range response.Request.Handler {
+		h(response)
 	}
-
-	if doc, err := goquery.NewDocumentFromReader(strings.NewReader(response.Text)); err == nil {
-		for _, h := range s.onHtmlHandlers {
-			if h.UrlReg != nil {
-				if ok := h.UrlReg.MatchString(response.HttpResponse.Request.URL.String()); !ok {
-					continue
-				}
-			}
-			doc.Find(h.Selector).Each(func(i int, s *goquery.Selection) {
-				for _, n := range s.Nodes {
-					h.fun(NewHTMLElementFromSelectionNode(response, s, n, i))
-				}
-			})
-		}
-	}
-}
-
-// Add on-event handler
-func (s *Spider) OnResponse(fun func(Resp *Response)) {
-	s.onResponseHandlers = append(s.onResponseHandlers, ResponseHandler{
-		UrlReg: nil,
-		fun:    fun,
-	})
-}
-func (s *Spider) OnUrlResponse(urlreg string, fun func(Resp *Response)) error {
-	r, err := regexp.Compile(urlreg)
-	if err != nil {
-		return err
-	}
-	s.onResponseHandlers = append(s.onResponseHandlers, ResponseHandler{
-		UrlReg: r,
-		fun:    fun,
-	})
-	return nil
-}
-func (s *Spider) OnHTML(selector string, fun func(DOM *HTMLElement)) {
-	s.onHtmlHandlers = append(s.onHtmlHandlers, HtmlHandler{
-		Selector: selector,
-		UrlReg:   nil,
-		fun:      fun,
-	})
-}
-func (s *Spider) OnUrlHTML(urlreg, selector string, fun func(DOM *HTMLElement)) error {
-	r, err := regexp.Compile(urlreg)
-	if err != nil {
-		return err
-	}
-	s.onHtmlHandlers = append(s.onHtmlHandlers, HtmlHandler{
-		Selector: selector,
-		UrlReg:   r,
-		fun:      fun,
-	})
-	return nil
 }
 
 // Add a new task to the queue
@@ -223,15 +119,16 @@ func (s *Spider) Crawl(r *Request) {
 		s.taskQueue.Push(r)
 	}
 }
-func (s *Spider) Get(u string) error {
+func (s *Spider) Get(u string, handler ...ResponseHandler) error {
 	req, err := NewGetRequest(u)
 	if err != nil {
 		return err
 	}
+	req.Handler = handler
 	s.Crawl(req)
 	return nil
 }
-func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}) error { //TODO Post func
+func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) error {
 	var data []byte
 	ct := ""
 	switch datatype {
@@ -261,6 +158,7 @@ func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}) erro
 	if err != nil {
 		return err
 	}
+	req.Handler = handler
 	s.Crawl(req)
 	return nil
 }
