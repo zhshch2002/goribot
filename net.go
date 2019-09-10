@@ -42,7 +42,7 @@ func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, e
 		contentType = "application/x-www-form-urlencoded"
 	}
 	return &Request{
-		Method: "GET",
+		Method: "POST",
 		Url:    *u,
 		Header: http.Header{
 			"Content-Type": {contentType},
