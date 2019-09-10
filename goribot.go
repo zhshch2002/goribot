@@ -3,16 +3,16 @@ package goribot
 import (
 	"encoding/json"
 	"github.com/PuerkitoBio/goquery"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 const (
-	UserAgent      = "" //TODO 设置UA
+	UserAgent      = "GoRibot" //TODO 设置UA
 	ThreadPoolSize = uint(15)
 )
 
@@ -20,9 +20,9 @@ type PostDataType int
 
 const (
 	_                  PostDataType = iota
-	TextPostData        // text/plain
-	UrlencodedPostData  // application/x-www-form-urlencoded
-	JsonPostData        // application/json
+	TextPostData                    // text/plain
+	UrlencodedPostData              // application/x-www-form-urlencoded
+	JsonPostData                    // application/json
 )
 
 type HtmlHandler struct {
@@ -102,7 +102,6 @@ func (s *Spider) Run() {
 	}
 	s.taskFinished = false
 	s.taskChan = make(chan *Request)
-	s.handleInitPipeline()
 	for i := uint(0); i < s.ThreadPoolSize; i++ {
 		s.wg.Add(1)
 		go func() {
@@ -111,14 +110,10 @@ func (s *Spider) Run() {
 				select {
 				case req := <-s.taskChan:
 					func() {
-						s.workingThread += 1
 						defer func() { s.workingThread -= 1 }()
-						req = s.handleOnRequestPipeline(req)
-						if req == nil {
-							return
-						}
 						resp, err := s.Downloader(req)
 						if err != nil {
+							log.Println("Downloader Error", err, req.Url.String())
 							s.handleOnErrorPipeline(err)
 							return
 						}
@@ -127,11 +122,10 @@ func (s *Spider) Run() {
 							return
 						}
 						s.handleResponse(resp)
-						atomic.AddInt32(&s.workingThread, - 1)
 					}()
 					break
 				default:
-					time.Sleep(500 * time.Millisecond)
+					time.Sleep(1 * time.Millisecond)
 				}
 			}
 		}()
@@ -141,10 +135,11 @@ func (s *Spider) Run() {
 			if s.workingThread == 0 { // make sure the queue is empty and no threat is working
 				break
 			} else {
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(1 * time.Millisecond)
 			}
 		} else {
 			s.taskChan <- s.taskQueue.Pop()
+			s.workingThread += 1
 		}
 	}
 	s.taskFinished = true
@@ -216,6 +211,12 @@ func (s *Spider) OnUrlHTML(urlreg, selector string, fun func(DOM *HTMLElement)) 
 
 // Add a new task to the queue
 func (s *Spider) Crawl(r *Request) {
+	r.Header.Set("User-Agent", s.UserAgent)
+	r = s.handleOnRequestPipeline(r)
+	if r == nil {
+		return
+	}
+
 	if s.DepthFirst {
 		s.taskQueue.PushInHead(r)
 	} else {
@@ -266,6 +267,7 @@ func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}) erro
 
 // Pipeline handlers and register
 func (s *Spider) Use(p PipelineInterface) {
+	p.Init(s)
 	s.pipeline = append(s.pipeline, p)
 }
 func (s *Spider) handleInitPipeline() {

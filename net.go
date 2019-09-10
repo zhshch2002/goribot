@@ -12,8 +12,7 @@ import (
 type Request struct {
 	Method  string
 	Url     url.URL
-	Header  Dict
-	Cookie  Dict
+	Header  http.Header
 	Body    []byte
 	Proxies string
 	Timeout time.Duration
@@ -27,6 +26,7 @@ func NewGetRequest(rawurl string) (*Request, error) {
 	return &Request{
 		Method:  "GET",
 		Url:     *u,
+		Header:  http.Header{},
 		Timeout: 5 * time.Second,
 	}, nil
 }
@@ -42,8 +42,8 @@ func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, e
 	return &Request{
 		Method: "GET",
 		Url:    *u,
-		Header: Dict{
-			"Content-Type": contentType,
+		Header: http.Header{
+			"Content-Type": {contentType},
 		},
 		Body:    data,
 		Timeout: 5 * time.Second,
@@ -80,17 +80,11 @@ func DoRequest(r *Request) (*Response, error) {
 	}
 
 	if r.Header != nil {
-		for k, v := range r.Header {
-			request.Header.Set(k, v)
+		for k, vl := range r.Header {
+			for _, v := range vl {
+				request.Header.Add(k, v)
+			}
 		}
-	}
-
-	if r.Cookie != nil {
-		var cookieTmp []string
-		for k, v := range r.Cookie {
-			cookieTmp = append(cookieTmp, k+"="+v)
-		}
-		request.Header.Set("Cookie", strings.Join(cookieTmp, "; "))
 	}
 
 	if r.Proxies != "" {
