@@ -5,21 +5,21 @@ import (
 	"regexp"
 )
 
-type UrlFilterPipeline struct {
+type urlFilterPipeline struct {
 	goribot.Pipeline
 	rex *regexp.Regexp
 }
 
-func NewUrlFilterPipeline(urlrex string) *UrlFilterPipeline {
+func NewUrlFilterPipeline(urlrex string) *urlFilterPipeline {
 	r, err := regexp.Compile(urlrex)
 
 	if err != nil {
 		panic(err)
 	}
-	return &UrlFilterPipeline{rex: r}
+	return &urlFilterPipeline{rex: r}
 }
 
-func (s *UrlFilterPipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *urlFilterPipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
 	if ok := s.rex.MatchString(request.Url.String()); !ok {
 		return nil
 	}
