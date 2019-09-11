@@ -3,10 +3,7 @@ package goribot
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"testing"
-	"time"
 )
 
 func TestNetIO(t *testing.T) {
@@ -76,29 +73,23 @@ func TestUaSetting(t *testing.T) {
 
 func TestHeaderSetting(t *testing.T) {
 	s := NewSpider()
-	u, _ := url.Parse("https://httpbin.org/headers")
-	h := http.Header{}
-	h.Set("goribot-test", "hello world")
-	h.Set("cookies", "a=1")
-	s.Crawl(&Request{
-		Method:  "GET",
-		Url:     *u,
-		Header:  h,
-		Timeout: 5 * time.Second,
-		Handler: []ResponseHandler{
-			func(r *Response) {
-				m := make(map[string]interface{})
-				err := json.Unmarshal([]byte(r.Text), &m)
-				if err != nil {
-					t.Error("set useragent test", "json load error", err)
-				}
-				if m["headers"].(map[string]interface{})["Goribot-Test"].(string) != "hello world" ||
-					m["headers"].(map[string]interface{})["Cookies"].(string) != "a=1" {
-					fmt.Println("TestHeaderSetting", r.Text)
-					t.Error("set header test error")
-				}
-			},
-		},
+	req, err := s.NewGetRequest("https://httpbin.org/headers", func(r *Response) {
+		m := make(map[string]interface{})
+		err := json.Unmarshal([]byte(r.Text), &m)
+		if err != nil {
+			t.Error("set useragent test", "json load error", err)
+		}
+		if m["headers"].(map[string]interface{})["Goribot-Test"].(string) != "hello world" ||
+			m["headers"].(map[string]interface{})["Cookies"].(string) != "a=1" {
+			fmt.Println("TestHeaderSetting", r.Text)
+			t.Error("set header test error")
+		}
 	})
+	if err != nil {
+		t.Error(err)
+	}
+	req.Header.Set("goribot-test", "hello world")
+	req.Header.Set("cookies", "a=1")
+	s.Crawl(req)
 	s.Run()
 }

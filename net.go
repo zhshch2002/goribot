@@ -12,7 +12,7 @@ import (
 
 type Request struct {
 	Method  string
-	Url     url.URL
+	Url     *url.URL
 	Header  http.Header
 	Body    []byte
 	Proxies string
@@ -27,7 +27,7 @@ func NewGetRequest(rawurl string) (*Request, error) {
 	}
 	return &Request{
 		Method:  "GET",
-		Url:     *u,
+		Url:     u,
 		Header:  http.Header{},
 		Timeout: 5 * time.Second,
 	}, nil
@@ -43,7 +43,7 @@ func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, e
 	}
 	return &Request{
 		Method: "POST",
-		Url:    *u,
+		Url:    u,
 		Header: http.Header{
 			"Content-Type": {contentType},
 		},

@@ -121,16 +121,24 @@ func (s *Spider) Crawl(r *Request) {
 		s.taskQueue.Push(r)
 	}
 }
-func (s *Spider) Get(u string, handler ...ResponseHandler) error {
+func (s *Spider) NewGetRequest(u string, handler ...ResponseHandler) (*Request, error) {
 	req, err := NewGetRequest(u)
+	if err != nil {
+		return nil, err
+	}
+	req.Handler = handler
+	return req, nil
+}
+func (s *Spider) Get(u string, handler ...ResponseHandler) error {
+	req, err := s.NewGetRequest(u, handler...)
 	if err != nil {
 		return err
 	}
-	req.Handler = handler
 	s.Crawl(req)
 	return nil
 }
-func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) error {
+
+func (s *Spider) NewPostRequest(u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) (*Request, error) {
 	var data []byte
 	ct := ""
 	switch datatype {
@@ -151,16 +159,23 @@ func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}, hand
 		ct = "application/json"
 		tdata, err := json.Marshal(rawdata)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		data = tdata
 		break
 	}
 	req, err := NewPostRequest(u, data, ct)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Handler = handler
+	return req, nil
+}
+func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) error {
+	req, err := s.NewPostRequest(u, datatype, rawdata, handler...)
+	if err != nil {
+		return err
+	}
 	s.Crawl(req)
 	return nil
 }
