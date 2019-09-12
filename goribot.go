@@ -5,13 +5,11 @@ import (
 	"log"
 	"math/rand"
 	"net/url"
-	"sync"
 	"time"
 )
 
 const (
-	UserAgent      = "GoRibot"
-	ThreadPoolSize = uint(15)
+	UserAgent = "GoRibot"
 )
 
 type PostDataType int
@@ -32,13 +30,10 @@ type Spider struct {
 	RandSleepRange [2]time.Duration
 	Downloader     func(*Request) (*Response, error)
 
-	pipeline     []PipelineInterface
-	taskQueue    *TaskQueue
-	taskChan     chan *Request
-	taskFinished bool
-	wg           sync.WaitGroup
+	pipeline  []PipelineInterface
+	taskQueue *TaskQueue
 
-	workingThread int32
+	workingThread uint
 }
 
 func NewSpider() *Spider {
@@ -47,59 +42,36 @@ func NewSpider() *Spider {
 		Downloader:     DoRequest,
 		UserAgent:      UserAgent,
 		DepthFirst:     false,
-		ThreadPoolSize: ThreadPoolSize,
+		ThreadPoolSize: 0,
 	}
 }
 
 func (s *Spider) Run() {
-	if s.ThreadPoolSize == 0 {
-		s.ThreadPoolSize = ThreadPoolSize
-	}
-	s.taskFinished = false
-	s.taskChan = make(chan *Request)
-	for i := uint(0); i < s.ThreadPoolSize; i++ {
-		s.wg.Add(1)
-		go func() {
-			defer s.wg.Done()
-			for !s.taskFinished {
-				select {
-				case req := <-s.taskChan:
-					func() {
-						defer func() { s.workingThread -= 1 }()
-						resp, err := s.Downloader(req)
-						if err != nil {
-							log.Println("Downloader Error", err, req.Url.String())
-							s.handleOnErrorPipeline(err)
-							return
-						}
-						resp = s.handleOnResponsePipeline(resp)
-						if resp == nil {
-							return
-						}
-						s.handleResponse(resp)
-					}()
-					break
-				default:
-					time.Sleep(1 * time.Millisecond)
-				}
-			}
-		}()
+	worker := func(req *Request) {
+		defer func() { s.workingThread -= 1 }()
+		resp, err := s.Downloader(req)
+		if err != nil {
+			log.Println("Downloader Error", err, req.Url.String())
+			s.handleOnErrorPipeline(err)
+			return
+		}
+		resp = s.handleOnResponsePipeline(resp)
+		if resp == nil {
+			return
+		}
+		s.handleResponse(resp)
 	}
 	for {
-		if s.taskQueue.IsEmpty() {
-			if s.workingThread == 0 { // make sure the queue is empty and no threat is working
-				break
-			} else {
-				time.Sleep(1 * time.Millisecond)
-			}
-		} else {
-			s.taskChan <- s.taskQueue.Pop()
+		if s.taskQueue.IsEmpty() && s.workingThread == 0 { // make sure the queue is empty and no threat is working
+			break
+		} else if (!s.taskQueue.IsEmpty()) && (s.workingThread < s.ThreadPoolSize || s.ThreadPoolSize == 0) {
 			s.workingThread += 1
+			go worker(s.taskQueue.Pop())
 			randSleep(s.RandSleepRange[0], s.RandSleepRange[1])
+		} else {
+			time.Sleep(100 * time.Nanosecond)
 		}
 	}
-	s.taskFinished = true
-	s.wg.Wait()
 }
 func (s *Spider) handleResponse(response *Response) {
 	for _, h := range response.Request.Handler {

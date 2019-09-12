@@ -16,8 +16,9 @@ func TestNetIO(t *testing.T) {
 		}
 		if m["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
 			fmt.Println(r.Text)
-			t.Error("urlencoded post test error")
+			t.Error("Get test error")
 		}
+		t.Log("Get test ok")
 	})
 	_ = s.Post("https://httpbin.org/post", UrlencodedPostData,
 		map[string]string{
@@ -33,6 +34,7 @@ func TestNetIO(t *testing.T) {
 				fmt.Println(r.Text)
 				t.Error("urlencoded post test error")
 			}
+			t.Log("UrlencodedPostData test ok")
 		})
 	_ = s.Post("https://httpbin.org/post", JsonPostData,
 		map[string]string{
@@ -48,6 +50,7 @@ func TestNetIO(t *testing.T) {
 				fmt.Println(r.Text)
 				t.Error("urlencoded post test error")
 			}
+			t.Log("JsonPostData test ok")
 		})
 	s.Run()
 }
@@ -67,6 +70,7 @@ func TestUaSetting(t *testing.T) {
 				"expected:", "'"+s.UserAgent+"'",
 				"got:", "'"+m["user-agent"].(string)+"'")
 		}
+		t.Log("UA test ok")
 	})
 	s.Run()
 }
@@ -84,6 +88,7 @@ func TestHeaderSetting(t *testing.T) {
 			fmt.Println("TestHeaderSetting", r.Text)
 			t.Error("set header test error")
 		}
+		t.Log("Header test ok")
 	})
 	if err != nil {
 		t.Error(err)
