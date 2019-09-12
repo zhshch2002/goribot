@@ -9,21 +9,21 @@ import (
 	"sync"
 )
 
-type deduplicatePipeline struct {
+type DeduplicatePipeline struct {
 	goribot.Pipeline
 	CrawledHash map[[md5.Size]byte]struct{}
 	lock        sync.Mutex
 }
 
-func NewDeduplicatePipeline() *deduplicatePipeline {
-	return &deduplicatePipeline{}
+func NewDeduplicatePipeline() *DeduplicatePipeline {
+	return &DeduplicatePipeline{}
 }
 
-func (s *deduplicatePipeline) Init(spider *goribot.Spider) {
+func (s *DeduplicatePipeline) Init(spider *goribot.Spider) {
 	s.CrawledHash = make(map[[md5.Size]byte]struct{})
 	s.lock = sync.Mutex{}
 }
-func (s *deduplicatePipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *DeduplicatePipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
 	has := GetRequestHash(request)
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -34,15 +34,15 @@ func (s *deduplicatePipeline) OnRequest(spider *goribot.Spider, request *goribot
 	s.CrawledHash[has] = struct{}{}
 	return request
 }
-func (s *deduplicatePipeline) OnResponse(spider *goribot.Spider, response *goribot.Response) *goribot.Response {
+func (s *DeduplicatePipeline) OnResponse(spider *goribot.Spider, response *goribot.Response) *goribot.Response {
 	return response
 }
-func (s *deduplicatePipeline) OnItem(spider *goribot.Spider, item interface{}) interface{} {
+func (s *DeduplicatePipeline) OnItem(spider *goribot.Spider, item interface{}) interface{} {
 	return item
 }
-func (s *deduplicatePipeline) OnError(spider *goribot.Spider, err error) {}
+func (s *DeduplicatePipeline) OnError(spider *goribot.Spider, err error) {}
 
-func (s *deduplicatePipeline) Finish(spider *goribot.Spider) {}
+func (s *DeduplicatePipeline) Finish(spider *goribot.Spider) {}
 
 func GetRequestHash(r *goribot.Request) [md5.Size]byte {
 	u := r.Url
