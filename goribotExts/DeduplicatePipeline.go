@@ -5,6 +5,7 @@ import (
 	"github.com/zhshch2002/goribot"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -45,6 +46,12 @@ func (s *DeduplicatePipeline) OnError(spider *goribot.Spider, err error) {}
 func (s *DeduplicatePipeline) Finish(spider *goribot.Spider) {}
 
 func GetRequestHash(r *goribot.Request) [md5.Size]byte {
+	RetryTimes := ""
+	if d, ok := r.Meta["RetryTimes"]; ok {
+		if n, ok := d.(int); ok {
+			RetryTimes = "RetryTimes:" + strconv.Itoa(n)
+		}
+	}
 	u := r.Url
 	UrtStr := u.Scheme + "://"
 	if u.User != nil {
@@ -90,7 +97,7 @@ func GetRequestHash(r *goribot.Request) [md5.Size]byte {
 	}
 	HeaderStr := strings.Join(HeaderStrList, "&")
 
-	data := []byte(UrtStr + HeaderStr)
+	data := []byte(strings.Join([]string{UrtStr, HeaderStr, RetryTimes}, "@#@"))
 	data = append(data, r.Body...)
 	has := md5.Sum(data)
 	return has

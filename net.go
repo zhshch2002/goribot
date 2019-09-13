@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 type Request struct {
@@ -16,48 +15,8 @@ type Request struct {
 	Header  http.Header
 	Body    []byte
 	Proxies string
-	Timeout time.Duration
+	Meta    map[string]interface{}
 	Handler []ResponseHandler
-}
-
-func NewGetRequest(rawurl string) (*Request, error) {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		return nil, err
-	}
-	return &Request{
-		Method:  "GET",
-		Url:     u,
-		Header:  http.Header{},
-		Timeout: 5 * time.Second,
-	}, nil
-}
-
-func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, error) {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		return nil, err
-	}
-	if contentType == "" {
-		contentType = "application/x-www-form-urlencoded"
-	}
-	return &Request{
-		Method: "POST",
-		Url:    u,
-		Header: http.Header{
-			"Content-Type": {contentType},
-		},
-		Body:    data,
-		Timeout: 5 * time.Second,
-	}, nil
-}
-
-func NewPostData(data Dict) []byte {
-	var DataTmp []string
-	for k, v := range data {
-		DataTmp = append(DataTmp, k+"="+v)
-	}
-	return []byte(strings.Join(DataTmp, "&"))
 }
 
 type Response struct {
@@ -67,13 +26,12 @@ type Response struct {
 	Headers      http.Header
 	Body         []byte
 	Text         string
+	Meta         map[string]interface{}
 	Html         *goquery.Document
 }
 
 func DoRequest(r *Request) (*Response, error) {
-	client := &http.Client{
-		Timeout: r.Timeout,
-	}
+	client := http.DefaultClient
 	if r.Body == nil {
 		r.Body = []byte{}
 	}
@@ -83,11 +41,7 @@ func DoRequest(r *Request) (*Response, error) {
 	}
 
 	if r.Header != nil {
-		for k, vl := range r.Header {
-			for _, v := range vl {
-				request.Header.Add(k, v)
-			}
-		}
+		request.Header = r.Header
 	}
 
 	if r.Proxies != "" {
@@ -102,7 +56,7 @@ func DoRequest(r *Request) (*Response, error) {
 
 	resp, err := client.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, HttpErr{error: err, Request: r}
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -120,5 +74,49 @@ func DoRequest(r *Request) (*Response, error) {
 		Body:         body,
 		Text:         string(body),
 		Html:         html,
+		Meta:         map[string]interface{}{},
 	}, nil
+}
+
+func NewRequest(method string, rawurl string, body []byte) (*Request, error) {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	return &Request{
+		Method: method,
+		Url:    u,
+		Body:   body,
+		Header: http.Header{},
+		Meta:   map[string]interface{}{},
+	}, nil
+}
+
+func NewGetRequest(rawurl string) (*Request, error) {
+	return NewRequest("GET", rawurl, []byte{})
+}
+
+func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, error) {
+	r, err := NewRequest("POST", rawurl, data)
+	if err != nil {
+		return nil, err
+	}
+	if contentType == "" {
+		contentType = "application/x-www-form-urlencoded"
+	}
+	r.Header.Set("Content-Type", contentType)
+	return r, nil
+}
+
+func NewPostData(data Dict) []byte {
+	var DataTmp []string
+	for k, v := range data {
+		DataTmp = append(DataTmp, k+"="+v)
+	}
+	return []byte(strings.Join(DataTmp, "&"))
+}
+
+type HttpErr struct {
+	error
+	Request *Request
 }

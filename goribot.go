@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/url"
+	"sync/atomic"
 	"time"
 )
 
@@ -25,7 +26,7 @@ type ResponseHandler func(r *Response)
 
 type Spider struct {
 	UserAgent      string
-	ThreadPoolSize uint
+	ThreadPoolSize uint64
 	DepthFirst     bool
 	RandSleepRange [2]time.Duration
 	Downloader     func(*Request) (*Response, error)
@@ -33,7 +34,7 @@ type Spider struct {
 	pipeline  []PipelineInterface
 	taskQueue *TaskQueue
 
-	workingThread uint
+	workingThread uint64
 }
 
 func NewSpider() *Spider {
@@ -48,7 +49,7 @@ func NewSpider() *Spider {
 
 func (s *Spider) Run() {
 	worker := func(req *Request) {
-		defer func() { s.workingThread -= 1 }()
+		defer atomic.AddUint64(&s.workingThread, ^uint64(0))
 		resp, err := s.Downloader(req)
 		if err != nil {
 			log.Println("Downloader Error", err, req.Url.String())
@@ -62,10 +63,10 @@ func (s *Spider) Run() {
 		s.handleResponse(resp)
 	}
 	for {
-		if s.taskQueue.IsEmpty() && s.workingThread == 0 { // make sure the queue is empty and no threat is working
+		if s.taskQueue.IsEmpty() && atomic.LoadUint64(&s.workingThread) == 0 { // make sure the queue is empty and no threat is working
 			break
-		} else if (!s.taskQueue.IsEmpty()) && (s.workingThread < s.ThreadPoolSize || s.ThreadPoolSize == 0) {
-			s.workingThread += 1
+		} else if (!s.taskQueue.IsEmpty()) && (atomic.LoadUint64(&s.workingThread) < s.ThreadPoolSize || s.ThreadPoolSize == 0) {
+			atomic.AddUint64(&s.workingThread, 1)
 			go worker(s.taskQueue.Pop())
 			randSleep(s.RandSleepRange[0], s.RandSleepRange[1])
 		} else {
