@@ -44,7 +44,7 @@ func (s *RetryPipeline) retry(spider *goribot.Spider, r *goribot.Request) {
 	} else {
 		r.Meta["RetryTimes"] = 1
 	}
-	spider.Crawl(r)
+	spider.Crawl(nil, r)
 }
 
 func (s *RetryPipeline) OnError(spider *goribot.Spider, err error) {

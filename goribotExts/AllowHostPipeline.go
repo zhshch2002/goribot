@@ -14,11 +14,8 @@ func NewMyPipeline() *MyPipeline {
 	return &MyPipeline{}
 }
 
-func (s *MyPipeline) Init(spider *goribot.Spider) {
-	s.CrawledHash = make(map[[md5.Size]byte]struct{})
-	s.lock = sync.Mutex{}
-}
-func (s *MyPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *MyPipeline) Init(spider *goribot.Spider) {}
+func (s *MyPipeline) OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request {
 	return request
 }
 func (s *MyPipeline) OnDoRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
