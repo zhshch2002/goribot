@@ -8,7 +8,7 @@ import (
 
 func TestNetIO(t *testing.T) {
 	s := NewSpider()
-	_ = s.Get("https://httpbin.org/get?Goribot%20test=hello%20world", func(r *Response) {
+	_ = s.Get(nil, "https://httpbin.org/get?Goribot%20test=hello%20world", func(r *Response) {
 		m := make(map[string]interface{})
 		err := json.Unmarshal([]byte(r.Text), &m)
 		if err != nil {
@@ -20,7 +20,7 @@ func TestNetIO(t *testing.T) {
 		}
 		t.Log("Get test ok")
 	})
-	_ = s.Post("https://httpbin.org/post", UrlencodedPostData,
+	_ = s.Post(nil, "https://httpbin.org/post", UrlencodedPostData,
 		map[string]string{
 			"Goribot test": "hello world",
 		},
@@ -36,7 +36,7 @@ func TestNetIO(t *testing.T) {
 			}
 			t.Log("UrlencodedPostData test ok")
 		})
-	_ = s.Post("https://httpbin.org/post", JsonPostData,
+	_ = s.Post(nil, "https://httpbin.org/post", JsonPostData,
 		map[string]string{
 			"Goribot test": "hello world",
 		},
@@ -58,7 +58,7 @@ func TestNetIO(t *testing.T) {
 func TestUaSetting(t *testing.T) {
 	s := NewSpider()
 	s.UserAgent = "GoRibot test ua"
-	_ = s.Get("https://httpbin.org/user-agent", func(r *Response) {
+	_ = s.Get(nil, "https://httpbin.org/user-agent", func(r *Response) {
 		m := make(map[string]interface{})
 		err := json.Unmarshal([]byte(r.Text), &m)
 		if err != nil {
@@ -95,6 +95,6 @@ func TestHeaderSetting(t *testing.T) {
 	}
 	req.Header.Set("goribot-test", "hello world")
 	req.Header.Set("cookies", "a=1")
-	s.Crawl(req)
+	s.Crawl(nil, req)
 	s.Run()
 }

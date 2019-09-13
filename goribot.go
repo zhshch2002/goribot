@@ -85,8 +85,8 @@ func (s *Spider) handleResponse(response *Response) {
 }
 
 // Add a new task to the queue
-func (s *Spider) Crawl(r *Request) {
-	r = s.handleOnNewRequestPipeline(r)
+func (s *Spider) Crawl(preResp *Response, r *Request) {
+	r = s.handleOnNewRequestPipeline(preResp, r)
 	if r == nil {
 		return
 	}
@@ -109,12 +109,12 @@ func (s *Spider) NewGetRequest(u string, handler ...ResponseHandler) (*Request, 
 	req.Handler = handler
 	return req, nil
 }
-func (s *Spider) Get(u string, handler ...ResponseHandler) error {
+func (s *Spider) Get(preResp *Response, u string, handler ...ResponseHandler) error {
 	req, err := s.NewGetRequest(u, handler...)
 	if err != nil {
 		return err
 	}
-	s.Crawl(req)
+	s.Crawl(preResp, req)
 	return nil
 }
 
@@ -151,12 +151,12 @@ func (s *Spider) NewPostRequest(u string, datatype PostDataType, rawdata interfa
 	req.Handler = handler
 	return req, nil
 }
-func (s *Spider) Post(u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) error {
+func (s *Spider) Post(preResp *Response, u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) error {
 	req, err := s.NewPostRequest(u, datatype, rawdata, handler...)
 	if err != nil {
 		return err
 	}
-	s.Crawl(req)
+	s.Crawl(preResp, req)
 	return nil
 }
 
@@ -170,9 +170,9 @@ func (s *Spider) handleInitPipeline() {
 		p.Init(s)
 	}
 }
-func (s *Spider) handleOnNewRequestPipeline(r *Request) *Request {
+func (s *Spider) handleOnNewRequestPipeline(preResp *Response, r *Request) *Request {
 	for _, p := range s.pipeline {
-		r = p.OnNewRequest(s, r)
+		r = p.OnNewRequest(s, preResp, r)
 		if r == nil {
 			return nil
 		}

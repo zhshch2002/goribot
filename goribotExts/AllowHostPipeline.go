@@ -49,7 +49,7 @@ func NewAllowHostPipeline(hosts ...string) *AllowHostPipeline {
 	return p
 }
 
-func (s *AllowHostPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *AllowHostPipeline) OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request {
 	if _, ok := s.Hosts[strings.ToLower(request.Url.Host)]; !ok {
 		return nil
 	}
@@ -70,7 +70,7 @@ func NewDisallowHostPipeline(hosts ...string) *AllowHostPipeline {
 	return p
 }
 
-func (s *DisallowHostPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *DisallowHostPipeline) OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request {
 	if _, ok := s.Hosts[strings.ToLower(request.Url.Host)]; ok {
 		return nil
 	}

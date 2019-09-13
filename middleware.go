@@ -5,7 +5,7 @@ import "log"
 type PipelineInterface interface {
 	Init(spider *Spider)
 	OnDoRequest(spider *Spider, request *Request) *Request
-	OnNewRequest(spider *Spider, request *Request) *Request
+	OnNewRequest(spider *Spider, preResp *Response, request *Request) *Request
 	OnResponse(spider *Spider, response *Response) *Response
 	OnItem(spider *Spider, item interface{}) interface{}
 	OnError(spider *Spider, err error)
@@ -20,7 +20,7 @@ func (s *Pipeline) Init(spider *Spider) {}
 func (s *Pipeline) OnDoRequest(spider *Spider, request *Request) *Request {
 	return request
 }
-func (s *Pipeline) OnNewRequest(spider *Spider, request *Request) *Request {
+func (s *Pipeline) OnNewRequest(spider *Spider, preResp *Response, request *Request) *Request {
 	return request
 }
 func (s *Pipeline) OnResponse(spider *Spider, response *Response) *Response {
@@ -45,7 +45,7 @@ func (s *PrintLogPipeline) OnDoRequest(spider *Spider, request *Request) *Reques
 	log.Println("Pipe OnRequest")
 	return request
 }
-func (s *PrintLogPipeline) OnNewRequest(spider *Spider, request *Request) *Request {
+func (s *PrintLogPipeline) OnNewRequest(spider *Spider, preResp *Response, request *Request) *Request {
 	log.Println("Pipe OnRequest")
 	return request
 }

@@ -24,7 +24,7 @@ func (s *DeduplicatePipeline) Init(spider *goribot.Spider) {
 	s.CrawledHash = make(map[[md5.Size]byte]struct{})
 	s.lock = sync.Mutex{}
 }
-func (s *DeduplicatePipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *DeduplicatePipeline) OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request {
 	has := GetRequestHash(request)
 	s.lock.Lock()
 	defer s.lock.Unlock()

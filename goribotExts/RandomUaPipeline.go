@@ -16,7 +16,7 @@ func NewRandomUaPipeline() *RandomUaPipeline {
 	return &RandomUaPipeline{}
 }
 
-func (s *RandomUaPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *RandomUaPipeline) OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request {
 	if request.Header.Get("User-Agent") == "" {
 		s.randSrc += 1
 		rs := rand.NewSource(time.Now().Unix() + s.randSrc)
