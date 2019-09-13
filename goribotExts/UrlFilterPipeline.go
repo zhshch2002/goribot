@@ -19,7 +19,7 @@ func NewUrlFilterPipeline(urlrex string) *UrlFilterPipeline {
 	return &UrlFilterPipeline{rex: r}
 }
 
-func (s *UrlFilterPipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *UrlFilterPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
 	if ok := s.rex.MatchString(request.Url.String()); !ok {
 		return nil
 	}

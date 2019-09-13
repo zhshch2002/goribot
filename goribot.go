@@ -50,6 +50,10 @@ func NewSpider() *Spider {
 func (s *Spider) Run() {
 	worker := func(req *Request) {
 		defer atomic.AddUint64(&s.workingThread, ^uint64(0))
+		req = s.handleOnDoRequestPipeline(req)
+		if req == nil {
+			return
+		}
 		resp, err := s.Downloader(req)
 		if err != nil {
 			log.Println("Downloader Error", err, req.Url.String())
@@ -82,7 +86,7 @@ func (s *Spider) handleResponse(response *Response) {
 
 // Add a new task to the queue
 func (s *Spider) Crawl(r *Request) {
-	r = s.handleOnRequestPipeline(r)
+	r = s.handleOnNewRequestPipeline(r)
 	if r == nil {
 		return
 	}
@@ -166,9 +170,18 @@ func (s *Spider) handleInitPipeline() {
 		p.Init(s)
 	}
 }
-func (s *Spider) handleOnRequestPipeline(r *Request) *Request {
+func (s *Spider) handleOnNewRequestPipeline(r *Request) *Request {
 	for _, p := range s.pipeline {
-		r = p.OnRequest(s, r)
+		r = p.OnNewRequest(s, r)
+		if r == nil {
+			return nil
+		}
+	}
+	return r
+}
+func (s *Spider) handleOnDoRequestPipeline(r *Request) *Request {
+	for _, p := range s.pipeline {
+		r = p.OnDoRequest(s, r)
 		if r == nil {
 			return nil
 		}

@@ -5,6 +5,36 @@ import (
 	"strings"
 )
 
+/*
+type MyPipeline struct {
+	goribot.Pipeline
+}
+
+func NewMyPipeline() *MyPipeline {
+	return &MyPipeline{}
+}
+
+func (s *MyPipeline) Init(spider *goribot.Spider) {
+	s.CrawledHash = make(map[[md5.Size]byte]struct{})
+	s.lock = sync.Mutex{}
+}
+func (s *MyPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+	return request
+}
+func (s *MyPipeline) OnDoRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+	return request
+}
+func (s *MyPipeline) OnResponse(spider *goribot.Spider, response *goribot.Response) *goribot.Response {
+	return response
+}
+func (s *MyPipeline) OnItem(spider *goribot.Spider, item interface{}) interface{} {
+	return item
+}
+func (s *MyPipeline) OnError(spider *goribot.Spider, err error) {}
+
+func (s *MyPipeline) Finish(spider *goribot.Spider) {}
+*/
+
 type AllowHostPipeline struct {
 	goribot.Pipeline
 	Hosts map[string]struct{}
@@ -19,7 +49,7 @@ func NewAllowHostPipeline(hosts ...string) *AllowHostPipeline {
 	return p
 }
 
-func (s *AllowHostPipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *AllowHostPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
 	if _, ok := s.Hosts[strings.ToLower(request.Url.Host)]; !ok {
 		return nil
 	}
@@ -40,7 +70,7 @@ func NewDisallowHostPipeline(hosts ...string) *AllowHostPipeline {
 	return p
 }
 
-func (s *DisallowHostPipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *DisallowHostPipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
 	if _, ok := s.Hosts[strings.ToLower(request.Url.Host)]; ok {
 		return nil
 	}

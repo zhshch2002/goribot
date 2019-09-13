@@ -24,7 +24,7 @@ func (s *DeduplicatePipeline) Init(spider *goribot.Spider) {
 	s.CrawledHash = make(map[[md5.Size]byte]struct{})
 	s.lock = sync.Mutex{}
 }
-func (s *DeduplicatePipeline) OnRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
+func (s *DeduplicatePipeline) OnNewRequest(spider *goribot.Spider, request *goribot.Request) *goribot.Request {
 	has := GetRequestHash(request)
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -35,15 +35,6 @@ func (s *DeduplicatePipeline) OnRequest(spider *goribot.Spider, request *goribot
 	s.CrawledHash[has] = struct{}{}
 	return request
 }
-func (s *DeduplicatePipeline) OnResponse(spider *goribot.Spider, response *goribot.Response) *goribot.Response {
-	return response
-}
-func (s *DeduplicatePipeline) OnItem(spider *goribot.Spider, item interface{}) interface{} {
-	return item
-}
-func (s *DeduplicatePipeline) OnError(spider *goribot.Spider, err error) {}
-
-func (s *DeduplicatePipeline) Finish(spider *goribot.Spider) {}
 
 func GetRequestHash(r *goribot.Request) [md5.Size]byte {
 	RetryTimes := ""
