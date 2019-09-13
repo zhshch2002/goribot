@@ -82,10 +82,13 @@ func (s *Spider) handleResponse(response *Response) {
 
 // Add a new task to the queue
 func (s *Spider) Crawl(r *Request) {
-	r.Header.Set("User-Agent", s.UserAgent)
 	r = s.handleOnRequestPipeline(r)
 	if r == nil {
 		return
+	}
+
+	if r.Header.Get("User-Agent") == "" {
+		r.Header.Set("User-Agent", s.UserAgent)
 	}
 
 	if s.DepthFirst {
@@ -199,5 +202,6 @@ func randSleep(min, max time.Duration) {
 	if min >= max || max == 0 {
 		return
 	}
-	time.Sleep(time.Duration(rand.Int63n(int64(max)-int64(min)) + int64(min)))
+	s := rand.NewSource(time.Now().Unix())
+	time.Sleep(time.Duration(rand.New(s).Int63n(int64(max)-int64(min)) + int64(min)))
 }
