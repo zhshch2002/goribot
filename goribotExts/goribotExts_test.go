@@ -8,6 +8,122 @@ import (
 	"testing"
 )
 
+func TestAllowHostPipeline(t *testing.T) {
+	s := goribot.NewSpider()
+	s.Use(NewAllowHostPipeline("github.com"))
+	got := false
+	err := s.Get(nil, "https://www.baidu.com/", func(r *goribot.Response) {
+		t.Error("TestAllowHostPipeline error")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = s.Get(nil, "https://github.com/", func(r *goribot.Response) {
+		got = true
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	s.Run()
+	if !got {
+		t.Error("TestAllowHostPipeline error")
+	}
+}
+
+func TestDisallowHostPipeline(t *testing.T) {
+	s := goribot.NewSpider()
+	s.Use(NewDisallowHostPipeline("github.com"))
+	got := false
+	err := s.Get(nil, "https://github.com/", func(r *goribot.Response) {
+		t.Error("TestDisallowHostPipeline error")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = s.Get(nil, "https://www.baidu.com/", func(r *goribot.Response) {
+		got = true
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	s.Run()
+	if !got {
+		t.Error("TestDisallowHostPipeline error")
+	}
+}
+
+func TestDeduplicatePipeline(t *testing.T) {
+	s := goribot.NewSpider()
+	s.Use(NewDeduplicatePipeline())
+	got := false
+	err := s.Get(nil, "https://www.baidu.com/", func(r *goribot.Response) {
+		got = true
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Get(nil, "https://www.baidu.com/", func(r *goribot.Response) {
+		t.Error("TestDeduplicatePipeline error")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.Run()
+	if !got {
+		t.Error("TestDeduplicatePipeline error")
+	}
+}
+
+func TestMaxRequestPipeline(t *testing.T) {
+	s := goribot.NewSpider()
+	s.Use(NewMaxRequestPipeline(1))
+	got := false
+	err := s.Get(nil, "https://www.github.com/", func(r *goribot.Response) {
+		got = true
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Get(nil, "https://www.baidu.com/", func(r *goribot.Response) {
+		t.Error("TestMaxRequestPipeline error")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.Run()
+	if !got {
+		t.Error("TestMaxRequestPipeline error")
+	}
+}
+
+func TestUrlFilterPipeline(t *testing.T) {
+	s := goribot.NewSpider()
+	s.Use(NewUrlFilterPipeline("github"))
+	got := false
+	err := s.Get(nil, "https://github.com/", func(r *goribot.Response) {
+		got = true
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Get(nil, "https://www.baidu.com/", func(r *goribot.Response) {
+		t.Error("TestMaxRequestPipeline error")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.Run()
+	if !got {
+		t.Error("TestMaxRequestPipeline error")
+	}
+}
+
 func TestRefererPipeline(t *testing.T) {
 	s := goribot.NewSpider()
 	s.Use(NewRefererPipeline())
@@ -57,8 +173,8 @@ func TestRandomUaPipeline(t *testing.T) {
 
 func TestRobotstxtPipeline(t *testing.T) {
 	s := goribot.NewSpider()
-	s.Use(NewRobotstxtPipeline("https://www.taobao.com/"))
-	err := s.Get(nil, "https://www.taobao.com/", func(r *goribot.Response) { // unable to access according to https://www.taobao.com/robots.txt
+	s.Use(NewRobotstxtPipeline("https://github.com/"))
+	err := s.Get(nil, "https://github.com/zhshch2002", func(r *goribot.Response) { // unable to access according to https://github.com/robots.txt
 		t.Error("RobotstxtPipeline error")
 	})
 	if err != nil {
@@ -67,10 +183,10 @@ func TestRobotstxtPipeline(t *testing.T) {
 	s.Run()
 
 	s = goribot.NewSpider()
-	s.UserAgent = "Bingbot"
+	s.UserAgent = "Googlebot"
 	got := false
-	s.Use(NewRobotstxtPipeline("https://www.taobao.com/"))
-	err = s.Get(nil, "https://www.taobao.com/list/product/%E9%97%B2%E9%B1%BC%E4%BA%8C%E6%89%8B.htm", func(r *goribot.Response) { // unable to access according to https://www.taobao.com/robots.txt
+	s.Use(NewRobotstxtPipeline("https://github.com/"))
+	err = s.Get(nil, "https://github.com/zhshch2002/goribot/wiki", func(r *goribot.Response) {
 		got = true
 	})
 	if err != nil {

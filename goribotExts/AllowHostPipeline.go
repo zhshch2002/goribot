@@ -58,8 +58,8 @@ type DisallowHostPipeline struct {
 	Hosts map[string]struct{}
 }
 
-func NewDisallowHostPipeline(hosts ...string) *AllowHostPipeline {
-	p := &AllowHostPipeline{}
+func NewDisallowHostPipeline(hosts ...string) *DisallowHostPipeline {
+	p := &DisallowHostPipeline{}
 	p.Hosts = make(map[string]struct{})
 	for _, h := range hosts {
 		p.Hosts[strings.ToLower(h)] = struct{}{}

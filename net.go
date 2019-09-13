@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -47,7 +46,7 @@ func DoRequest(r *Request) (*Response, error) {
 	}
 
 	if r.Header != nil {
-		HttpRequest.Header = r.Header
+		HttpRequest.Header = r.Header.Clone()
 	}
 
 	if r.Proxies != "" {
@@ -72,7 +71,7 @@ func DoRequest(r *Request) (*Response, error) {
 
 	html, _ := goquery.NewDocumentFromReader(bytes.NewReader(body))
 
-	res := &Response{
+	return &Response{
 		Request:      r,
 		HttpResponse: resp,
 		Status:       resp.StatusCode,
@@ -80,12 +79,8 @@ func DoRequest(r *Request) (*Response, error) {
 		Body:         body,
 		Text:         string(body),
 		Html:         html,
-		Meta:         map[string]interface{}{},
-	}
-	for key, value := range r.Meta {
-		res.Meta[key] = value
-	}
-	return res, nil
+		Meta:         r.Meta,
+	}, nil
 }
 
 func NewRequest(method string, rawurl string, body []byte) (*Request, error) {
@@ -116,14 +111,6 @@ func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, e
 	}
 	r.Header.Set("Content-Type", contentType)
 	return r, nil
-}
-
-func NewPostData(data Dict) []byte {
-	var DataTmp []string
-	for k, v := range data {
-		DataTmp = append(DataTmp, k+"="+v)
-	}
-	return []byte(strings.Join(DataTmp, "&"))
 }
 
 type HttpErr struct {
