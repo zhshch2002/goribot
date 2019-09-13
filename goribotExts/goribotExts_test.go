@@ -54,3 +54,30 @@ func TestRandomUaPipeline(t *testing.T) {
 	}
 	s.Run()
 }
+
+func TestRobotstxtPipeline(t *testing.T) {
+	s := goribot.NewSpider()
+	s.Use(NewRobotstxtPipeline("https://www.taobao.com/"))
+	err := s.Get(nil, "https://www.taobao.com/", func(r *goribot.Response) { // unable to access according to https://www.taobao.com/robots.txt
+		t.Error("RobotstxtPipeline error")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	s.Run()
+
+	s = goribot.NewSpider()
+	s.UserAgent = "Bingbot"
+	got := false
+	s.Use(NewRobotstxtPipeline("https://www.taobao.com/"))
+	err = s.Get(nil, "https://www.taobao.com/list/product/%E9%97%B2%E9%B1%BC%E4%BA%8C%E6%89%8B.htm", func(r *goribot.Response) { // unable to access according to https://www.taobao.com/robots.txt
+		got = true
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	s.Run()
+	if !got {
+		t.Error("RobotstxtPipeline error")
+	}
+}

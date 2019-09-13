@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Request struct {
@@ -30,18 +31,23 @@ type Response struct {
 	Html         *goquery.Document
 }
 
+var DefaultClient = &http.Client{
+	Jar:     nil,
+	Timeout: 5 * time.Second,
+}
+
 func DoRequest(r *Request) (*Response, error) {
-	client := http.DefaultClient
+	client := DefaultClient
 	if r.Body == nil {
 		r.Body = []byte{}
 	}
-	request, err := http.NewRequest(r.Method, r.Url.String(), bytes.NewReader(r.Body))
+	HttpRequest, err := http.NewRequest(r.Method, r.Url.String(), bytes.NewReader(r.Body))
 	if err != nil {
 		return nil, err
 	}
 
 	if r.Header != nil {
-		request.Header = r.Header
+		HttpRequest.Header = r.Header
 	}
 
 	if r.Proxies != "" {
@@ -54,7 +60,7 @@ func DoRequest(r *Request) (*Response, error) {
 		}
 	}
 
-	resp, err := client.Do(request)
+	resp, err := client.Do(HttpRequest)
 	if err != nil {
 		return nil, HttpErr{error: err, Request: r}
 	}
@@ -66,7 +72,7 @@ func DoRequest(r *Request) (*Response, error) {
 
 	html, _ := goquery.NewDocumentFromReader(bytes.NewReader(body))
 
-	return &Response{
+	res := &Response{
 		Request:      r,
 		HttpResponse: resp,
 		Status:       resp.StatusCode,
@@ -75,7 +81,11 @@ func DoRequest(r *Request) (*Response, error) {
 		Text:         string(body),
 		Html:         html,
 		Meta:         map[string]interface{}{},
-	}, nil
+	}
+	for key, value := range r.Meta {
+		res.Meta[key] = value
+	}
+	return res, nil
 }
 
 func NewRequest(method string, rawurl string, body []byte) (*Request, error) {
