@@ -32,11 +32,14 @@ go get -u github.com/zhshch2002/goribot
 ## basic
 ```Go
 s := goribot.NewSpider() // 实例化一个蜘蛛
-err := s.Get(nil,"https://httpbin.org/",aHandleFunc,anotherHandleFunc) // 执行一个任务，访问 https://httpbin.org/ 并使用 aHandleFunc 和 anotherHandleFunc 处理结果（第一个nil参数表示上一个response，这里是凭空创建的任务，所以是nil）
+
+// 执行一个任务，访问 https://httpbin.org/ 并使用 aHandleFunc 和 anotherHandleFunc 处理结果
+// （第一个nil参数表示上一个response，这里是凭空创建的任务，所以是nil）
+err := s.Get(nil,"https://httpbin.org/",aHandleFunc,anotherHandleFunc)
 if err != nil{
     panic(err)
 }
-s.Run() // 运行呗（这里会阻塞程序直到队列里没有更多的任务可以执行）
+s.Run() // 运行啦（这里会阻塞程序直到队列里没有更多的任务可以执行）
 ```
 
 在匿名函数里创建任务
