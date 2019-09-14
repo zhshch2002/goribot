@@ -61,6 +61,90 @@ s.Use(goribotExts.NewAllowHostPipeline("www.bilibili.com")) // 使用域名过�
 ## 已经实现了的Pipeline
 TODO：在goribotExts目录下。
 
+# Example:Bilibili.com spider
+```go
+package main
+
+import (
+	"github.com/PuerkitoBio/goquery"
+	"github.com/zhshch2002/goribot"
+	"github.com/zhshch2002/goribot/goribotExts"
+	"log"
+	"os"
+	"strings"
+)
+
+type BiliVideoItem struct {
+	Title, Url string
+}
+
+type BiliPipe struct {
+	goribot.Pipeline
+	itemCount int
+	f         *os.File
+}
+
+func (s *BiliPipe) Init(spider *goribot.Spider) {
+	f, err := os.OpenFile("bilibili.txt", os.O_RDWR|os.O_APPEND, 0660)
+	if err != nil {
+		panic(err)
+	}
+	s.f = f
+}
+func (s *BiliPipe) OnItem(spider *goribot.Spider, item interface{}) interface{} {
+	s.itemCount += 1
+	log.Println("got item", s.itemCount)
+	if i, ok := item.(BiliVideoItem); ok {
+		_, _ = s.f.Write([]byte(i.Title + "\t" + i.Url + "\n"))
+	}
+	return item
+}
+func (s *BiliPipe) Finish(spider *goribot.Spider) {
+	_ = s.f.Close()
+}
+
+func main() {
+	s := goribot.NewSpider()
+
+	s.Use(goribotExts.NewAllowHostPipeline("www.bilibili.com"))
+	s.Use(goribotExts.NewDeduplicatePipeline())
+	s.Use(goribotExts.NewRandomUaPipeline())
+	s.Use(goribotExts.NewRetryPipelineWithErrorCode(1, 404, 403))
+	s.Use(&BiliPipe{})
+
+	//s.RandSleepRange = [2]time.Duration{5 * time.Millisecond, 1 * time.Second}
+
+	var biliVideoHandler goribot.ResponseHandler
+	biliVideoHandler = func(r *goribot.Response) {
+		s.NewItem(BiliVideoItem{
+			Title: r.Html.Find("title").Text(),
+			Url:   r.Request.Url.String(),
+		})
+
+		r.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
+			rawurl, _ := selection.Attr("href")
+			if !strings.HasPrefix(rawurl, "/video/av") {
+				return
+			}
+			u, err := r.Request.Url.Parse(rawurl)
+			if err != nil {
+				return
+			}
+			u.RawQuery = ""
+			if strings.HasSuffix(u.Path, "/") {
+				u.Path = u.Path[0 : len(u.Path)-1]
+			}
+			//log.Println(u.String())
+			_ = s.Get(r, u.String(), biliVideoHandler)
+		})
+	}
+
+	_ = s.Get(nil, "https://www.bilibili.com/video/av66703342", biliVideoHandler)
+
+	s.Run()
+}
+```
+
 # TODO
 * Basic
   * [x] 实现请求随机延时
