@@ -13,6 +13,8 @@ func NewRefererPipeline() *RefererPipeline {
 }
 
 func (s *RefererPipeline) OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request {
-	request.Header.Set("Referer", preResp.Request.Url.String())
+	if preResp != nil {
+		request.Header.Set("Referer", preResp.Request.Url.String())
+	}
 	return request
 }

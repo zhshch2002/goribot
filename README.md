@@ -24,6 +24,48 @@ func main() {
     s.Run()
 }
 ```
+# Start to use
+## install
+```shell
+go get -u github.com/zhshch2002/goribot
+```
+## basic
+```Go
+s := goribot.NewSpider() // 实例化一个蜘蛛
+err := s.Get(nil,"https://httpbin.org/",aHandleFunc,anotherHandleFunc) // 执行一个任务，访问 https://httpbin.org/ 并使用 aHandleFunc 和 anotherHandleFunc 处理结果（第一个nil参数表示上一个response，这里是凭空创建的任务，所以是nil）
+if err != nil{
+    panic(err)
+}
+s.Run() // 运行呗（这里会阻塞程序直到队列里没有更多的任务可以执行）
+```
+
+在匿名函数里创建任务
+```Go
+var bulabulaHandler goribot.ResponseHandler // 如此声明函数可以在函数内“提到”自己
+bulabulaHandler = func(r *goribot.Response) {
+    // do somethings and make a url var called u
+    _ = s.Get(r, u, bulabulaHandler)
+}
+err := s.Get(nil,"https://httpbin.org/",bulabulaHandler) // 将函数自己作为新的任务的回调Handler
+if err != nil{
+   
+s.Run()
+```
+
+
+## use pipeline
+```Go
+s := goribot.NewSpider() // 实例化一个蜘蛛
+// bulabula 一些其他操作
+s.Use(goribotExts.NewAllowHostPipeline("www.bilibili.com")) // 使用预置的HOST过滤Pipeline，不满足的任务将不会进入队列
+s.Use(goribotExts.NewRefererPipeline()) // 使用预置的Refer头添加Pipeline，也就是s.Get方法里第一个参数的意义。Pipeline会从第一个参数指定的内容添加Refer
+
+var bulabulaHandler goribot.ResponseHandler
+bulabulaHandler = func(r *goribot.Response) {
+    // do somethings and make a url var called u
+    _ = s.Get(r, u, bulabulaHandler) // 用s.Get的第一个参数使得RefererPipeline生效
+}
+```
 
 # Pipeline
 Pipeline是一个实现了`PipelineInterface`的`struct`。包含了数个钩子函数。
