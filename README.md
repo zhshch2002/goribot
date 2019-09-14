@@ -13,14 +13,14 @@ import (
 
 func main() {
     s := goribot.NewSpider()
-	_ = s.Get(nil, "https://httpbin.org/get?Goribot%20test=hello%20world", func(r *goribot.Response) {
-		m := make(map[string]interface{})
-		err := json.Unmarshal([]byte(r.Text), &m)
-		if err != nil {
-			fmt.Println(err)
-		}
+    _ = s.Get(nil, "https://httpbin.org/get?Goribot%20test=hello%20world", func(r *goribot.Response) {
+        m := make(map[string]interface{})
+        err := json.Unmarshal([]byte(r.Text), &m)
+        if err != nil {
+            fmt.Println(err)
+        }
         fmt.Println(m)
-	})
+    })
     s.Run()
 }
 ```
@@ -31,13 +31,13 @@ Pipeline是一个实现了`PipelineInterface`的`struct`。包含了数个钩子
 package goribot
 
 type PipelineInterface interface {
-	Init(spider *goribot.Spider)
-	OnDoRequest(spider *Spider, request *goribot.Request) *goribot.Request
-	OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request
-	OnResponse(spider *goribot.Spider, response *goribot.Response) *goribot.Response
-	OnItem(spider *goribot.Spider, item interface{}) interface{}
-	OnError(spider *goribot.Spider, err error)
-	Finish(spider *goribot.Spider)
+    Init(spider *goribot.Spider)
+    OnDoRequest(spider *Spider, request *goribot.Request) *goribot.Request
+    OnNewRequest(spider *goribot.Spider, preResp *goribot.Response, request *goribot.Request) *goribot.Request
+    OnResponse(spider *goribot.Spider, response *goribot.Response) *goribot.Response
+    OnItem(spider *goribot.Spider, item interface{}) interface{}
+    OnError(spider *goribot.Spider, err error)
+    Finish(spider *goribot.Spider)
 }
 ```
 
@@ -67,82 +67,82 @@ TODO：在goribotExts目录下。
 package main
 
 import (
-	"github.com/PuerkitoBio/goquery"
-	"github.com/zhshch2002/goribot"
-	"github.com/zhshch2002/goribot/goribotExts"
-	"log"
-	"os"
-	"strings"
+    "github.com/PuerkitoBio/goquery"
+    "github.com/zhshch2002/goribot"
+    "github.com/zhshch2002/goribot/goribotExts"
+    "log"
+    "os"
+    "strings"
 )
 
 type BiliVideoItem struct {
-	Title, Url string
+    Title, Url string
 }
 
 type BiliPipe struct {
-	goribot.Pipeline
-	itemCount int
-	f         *os.File
+    goribot.Pipeline
+    itemCount int
+    f         *os.File
 }
 
 func (s *BiliPipe) Init(spider *goribot.Spider) {
-	f, err := os.OpenFile("bilibili.txt", os.O_RDWR|os.O_APPEND, 0660)
-	if err != nil {
-		panic(err)
-	}
-	s.f = f
+    f, err := os.OpenFile("bilibili.txt", os.O_RDWR|os.O_APPEND, 0660)
+    if err != nil {
+        panic(err)
+    }
+    s.f = f
 }
 func (s *BiliPipe) OnItem(spider *goribot.Spider, item interface{}) interface{} {
-	s.itemCount += 1
-	log.Println("got item", s.itemCount)
-	if i, ok := item.(BiliVideoItem); ok {
-		_, _ = s.f.Write([]byte(i.Title + "\t" + i.Url + "\n"))
-	}
-	return item
+    s.itemCount += 1
+    log.Println("got item", s.itemCount)
+    if i, ok := item.(BiliVideoItem); ok {
+        _, _ = s.f.Write([]byte(i.Title + "\t" + i.Url + "\n"))
+    }
+    return item
 }
 func (s *BiliPipe) Finish(spider *goribot.Spider) {
-	_ = s.f.Close()
+    _ = s.f.Close()
 }
 
 func main() {
-	s := goribot.NewSpider()
+    s := goribot.NewSpider()
 
-	s.Use(goribotExts.NewAllowHostPipeline("www.bilibili.com"))
-	s.Use(goribotExts.NewDeduplicatePipeline())
-	s.Use(goribotExts.NewRandomUaPipeline())
-	s.Use(goribotExts.NewRetryPipelineWithErrorCode(1, 404, 403))
-	s.Use(&BiliPipe{})
+    s.Use(goribotExts.NewAllowHostPipeline("www.bilibili.com"))
+    s.Use(goribotExts.NewDeduplicatePipeline())
+    s.Use(goribotExts.NewRandomUaPipeline())
+    s.Use(goribotExts.NewRetryPipelineWithErrorCode(1, 404, 403))
+    s.Use(&BiliPipe{})
 
-	//s.RandSleepRange = [2]time.Duration{5 * time.Millisecond, 1 * time.Second}
+    //s.RandSleepRange = [2]time.Duration{5 * time.Millisecond, 1 * time.Second}
 
-	var biliVideoHandler goribot.ResponseHandler
-	biliVideoHandler = func(r *goribot.Response) {
-		s.NewItem(BiliVideoItem{
-			Title: r.Html.Find("title").Text(),
-			Url:   r.Request.Url.String(),
-		})
+    var biliVideoHandler goribot.ResponseHandler
+    biliVideoHandler = func(r *goribot.Response) {
+        s.NewItem(BiliVideoItem{
+            Title: r.Html.Find("title").Text(),
+            Url:   r.Request.Url.String(),
+        })
 
-		r.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
-			rawurl, _ := selection.Attr("href")
-			if !strings.HasPrefix(rawurl, "/video/av") {
-				return
-			}
-			u, err := r.Request.Url.Parse(rawurl)
-			if err != nil {
-				return
-			}
-			u.RawQuery = ""
-			if strings.HasSuffix(u.Path, "/") {
-				u.Path = u.Path[0 : len(u.Path)-1]
-			}
-			//log.Println(u.String())
-			_ = s.Get(r, u.String(), biliVideoHandler)
-		})
-	}
+        r.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
+            rawurl, _ := selection.Attr("href")
+            if !strings.HasPrefix(rawurl, "/video/av") {
+                return
+            }
+            u, err := r.Request.Url.Parse(rawurl)
+            if err != nil {
+                return
+            }
+            u.RawQuery = ""
+            if strings.HasSuffix(u.Path, "/") {
+                u.Path = u.Path[0 : len(u.Path)-1]
+            }
+            //log.Println(u.String())
+            _ = s.Get(r, u.String(), biliVideoHandler)
+        })
+    }
 
-	_ = s.Get(nil, "https://www.bilibili.com/video/av66703342", biliVideoHandler)
+    _ = s.Get(nil, "https://www.bilibili.com/video/av66703342", biliVideoHandler)
 
-	s.Run()
+    s.Run()
 }
 ```
 
