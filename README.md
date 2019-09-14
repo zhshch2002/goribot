@@ -91,6 +91,8 @@ type PipelineInterface interface {
 s := goribot.NewSpider()
 s.Use(goribotExts.NewAllowHostPipeline("www.bilibili.com")) // 使用域名过滤Pipeline
 ```
+![GoRibot process flow](https://raw.githubusercontent.com/zhshch2002/goribot/master/_doc/GoRibot%20process%20flow.png)
+
 ## 接力棒逻辑
 在Pipeline中具有返回值的函数，可以通过返回一个新的结果来改变相应的`Request`、`Response`和`Item`。`Spider`会顺序调用所有注册的`Pipeline`的钩子函数（例如有新`Request`时会调用每个`OnNewRequest`函数），意味着上一个`OnNewRequest`函数传出的结构会被送给下一个`OnNewRequest`函数。这就是接力棒逻辑。
 当接力棒的某一个函数返回了`nil`结果，那么这个`Request`、`Response`或`Item`会被抛弃，不在参与之后的运行。
