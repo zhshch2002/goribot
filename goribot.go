@@ -43,7 +43,7 @@ func NewSpider() *Spider {
 		Downloader:     DoRequest,
 		UserAgent:      UserAgent,
 		DepthFirst:     false,
-		ThreadPoolSize: 0,
+		ThreadPoolSize: 30,
 	}
 }
 
