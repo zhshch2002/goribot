@@ -21,6 +21,7 @@ func main() {
 		}
         fmt.Println(m)
 	})
+    s.Run()
 }
 ```
 
