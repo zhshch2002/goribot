@@ -4,7 +4,7 @@ import "sync"
 
 type TaskQueue struct {
 	sync.Mutex
-	items []*Request
+	items []*Task
 }
 
 func NewTaskQueue() *TaskQueue {
@@ -13,17 +13,17 @@ func NewTaskQueue() *TaskQueue {
 	}
 }
 
-func (s *TaskQueue) Push(item *Request) {
+func (s *TaskQueue) Push(item *Task) {
 	s.Lock()
 	s.items = append(s.items, item)
 	s.Unlock()
 }
-func (s *TaskQueue) PushInHead(item *Request) {
+func (s *TaskQueue) PushInHead(item *Task) {
 	s.Lock()
-	s.items = append([]*Request{item}, s.items...)
+	s.items = append([]*Task{item}, s.items...)
 	s.Unlock()
 }
-func (s *TaskQueue) Pop() *Request {
+func (s *TaskQueue) Pop() *Task {
 	s.Lock()
 	item := s.items[0]
 	s.items = s.items[1:]

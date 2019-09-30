@@ -2,44 +2,56 @@ package goribot
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/PuerkitoBio/goquery"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"time"
+)
+
+type PostDataType int
+
+const (
+	TextPostData       PostDataType = iota // text/plain
+	UrlencodedPostData                     // application/x-www-form-urlencoded
+	JsonPostData                           // application/json
 )
 
 type Request struct {
-	Method  string
-	Url     *url.URL
-	Header  http.Header
-	Body    []byte
-	Proxies string
-	Meta    map[string]interface{}
-	Handler []ResponseHandler
+	Url    *url.URL
+	Method string
+	Cookie []*http.Cookie
+	Header http.Header
+	Body   []byte
+	Proxy  string
+}
+
+func NewRequest() *Request {
+	return &Request{
+		Url:    &url.URL{},
+		Method: "GET",
+		Cookie: []*http.Cookie{},
+		Header: http.Header{},
+		Body:   []byte{},
+		Proxy:  "",
+	}
 }
 
 type Response struct {
+	Url    *url.URL
+	Status int
+	Header http.Header
+	Body   []byte
+
 	Request      *Request
 	HttpResponse *http.Response
-	Status       int
-	Headers      http.Header
-	Body         []byte
-	Text         string
-	Meta         map[string]interface{}
-	Html         *goquery.Document
+
+	Text string
+	Html *goquery.Document
+	Json map[string]interface{}
 }
 
-var DefaultClient = &http.Client{
-	Jar:     nil,
-	Timeout: 5 * time.Second,
-}
-
-func DoRequest(r *Request) (*Response, error) {
-	client := DefaultClient
-	if r.Body == nil {
-		r.Body = []byte{}
-	}
+func Download(r *Request) (*Response, error) {
 	HttpRequest, err := http.NewRequest(r.Method, r.Url.String(), bytes.NewReader(r.Body))
 	if err != nil {
 		return nil, err
@@ -48,18 +60,22 @@ func DoRequest(r *Request) (*Response, error) {
 	if r.Header != nil {
 		HttpRequest.Header = r.Header.Clone()
 	}
+	for _, i := range r.Cookie {
+		HttpRequest.AddCookie(i)
+	}
 
-	if r.Proxies != "" {
-		p, err := url.Parse(r.Proxies)
+	c := &http.Client{}
+	if r.Proxy != "" {
+		p, err := url.Parse(r.Proxy)
 		if err != nil {
 			return nil, err
 		}
-		client.Transport = &http.Transport{
+		c.Transport = &http.Transport{
 			Proxy: http.ProxyURL(p),
 		}
 	}
 
-	resp, err := client.Do(HttpRequest)
+	resp, err := c.Do(HttpRequest)
 	if err != nil {
 		return nil, HttpErr{error: err, Request: r}
 	}
@@ -70,50 +86,31 @@ func DoRequest(r *Request) (*Response, error) {
 	}
 
 	html, _ := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	var j map[string]interface{}
+	_ = json.Unmarshal(body, &j)
 
 	return &Response{
+		Url:          r.Url,
+		Status:       resp.StatusCode,
+		Header:       resp.Header,
+		Body:         body,
 		Request:      r,
 		HttpResponse: resp,
-		Status:       resp.StatusCode,
-		Headers:      resp.Header,
-		Body:         body,
 		Text:         string(body),
 		Html:         html,
-		Meta:         r.Meta,
+		Json:         j,
 	}, nil
-}
-
-func NewRequest(method string, rawurl string, body []byte) (*Request, error) {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		return nil, err
-	}
-	return &Request{
-		Method: method,
-		Url:    u,
-		Body:   body,
-		Header: http.Header{},
-		Meta:   map[string]interface{}{},
-	}, nil
-}
-
-func NewGetRequest(rawurl string) (*Request, error) {
-	return NewRequest("GET", rawurl, []byte{})
-}
-
-func NewPostRequest(rawurl string, data []byte, contentType string) (*Request, error) {
-	r, err := NewRequest("POST", rawurl, data)
-	if err != nil {
-		return nil, err
-	}
-	if contentType == "" {
-		contentType = "application/x-www-form-urlencoded"
-	}
-	r.Header.Set("Content-Type", contentType)
-	return r, nil
 }
 
 type HttpErr struct {
 	error
 	Request *Request
+}
+
+func MustParseUrl(rawurl string) *url.URL {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }

@@ -1,100 +1,144 @@
 package goribot
 
 import (
-	"encoding/json"
-	"fmt"
+	"net/http"
 	"testing"
 )
 
-func TestNetIO(t *testing.T) {
+func TestBasic(t *testing.T) {
 	s := NewSpider()
-	_ = s.Get(nil, "https://httpbin.org/get?Goribot%20test=hello%20world", func(r *Response) {
-		m := make(map[string]interface{})
-		err := json.Unmarshal([]byte(r.Text), &m)
-		if err != nil {
-			t.Error("set useragent test", "json load error", err)
+	got := false
+	s.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
+		t.Log("got resp data", ctx.Text)
+		if ctx.Json["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
+			t.Error("wrong resp data")
+		} else {
+			got = true
 		}
-		if m["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-			fmt.Println(r.Text)
-			t.Error("Get test error")
-		}
-		t.Log("Get test ok")
-	})
-	_ = s.Post(nil, "https://httpbin.org/post", UrlencodedPostData,
-		map[string]string{
-			"Goribot test": "hello world",
-		},
-		func(r *Response) {
-			m := make(map[string]interface{})
-			err := json.Unmarshal([]byte(r.Text), &m)
-			if err != nil {
-				t.Error("set useragent test", "json load error", err)
-			}
-			if m["form"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-				fmt.Println(r.Text)
-				t.Error("urlencoded post test error")
-			}
-			t.Log("UrlencodedPostData test ok")
-		})
-	_ = s.Post(nil, "https://httpbin.org/post", JsonPostData,
-		map[string]string{
-			"Goribot test": "hello world",
-		},
-		func(r *Response) {
-			m := make(map[string]interface{})
-			err := json.Unmarshal([]byte(r.Text), &m)
-			if err != nil {
-				t.Error("set useragent test", "json load error", err)
-			}
-			if m["json"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-				fmt.Println(r.Text)
-				t.Error("urlencoded post test error")
-			}
-			t.Log("JsonPostData test ok")
-		})
-	s.Run()
-}
-
-func TestUaSetting(t *testing.T) {
-	s := NewSpider()
-	s.UserAgent = "GoRibot test ua"
-	_ = s.Get(nil, "https://httpbin.org/user-agent", func(r *Response) {
-		m := make(map[string]interface{})
-		err := json.Unmarshal([]byte(r.Text), &m)
-		if err != nil {
-			t.Error("set useragent test", "json load error", err)
-		}
-		if m["user-agent"].(string) != s.UserAgent {
-			t.Error(
-				"set useragent test error",
-				"expected:", "'"+s.UserAgent+"'",
-				"got:", "'"+m["user-agent"].(string)+"'")
-		}
-		t.Log("UA test ok")
 	})
 	s.Run()
-}
-
-func TestHeaderSetting(t *testing.T) {
-	s := NewSpider()
-	req, err := s.NewGetRequest("https://httpbin.org/headers", func(r *Response) {
-		m := make(map[string]interface{})
-		err := json.Unmarshal([]byte(r.Text), &m)
-		if err != nil {
-			t.Error("set useragent test", "json load error", err)
-		}
-		if m["headers"].(map[string]interface{})["Goribot-Test"].(string) != "hello world" ||
-			m["headers"].(map[string]interface{})["Cookies"].(string) != "a=1" {
-			fmt.Println("TestHeaderSetting", r.Text)
-			t.Error("set header test error")
-		}
-		t.Log("Header test ok")
-	})
-	if err != nil {
-		t.Error(err)
+	if !got {
+		t.Error("didn't get data")
 	}
-	req.Header.Set("goribot-test", "hello world")
-	req.Header.Set("cookies", "a=1")
-	s.Crawl(nil, req)
+}
+
+func TestCookie(t *testing.T) {
+	s := NewSpider()
+	got := false
+	r := MustNewGetReq("https://httpbin.org/cookies")
+	r.Cookie = append(r.Cookie, &http.Cookie{
+		Name:  "Goribot test",
+		Value: "hello world",
+	})
+	s.NewTask(r, func(ctx *Context) {
+		t.Log("got resp data", ctx.Text)
+		if ctx.Json["cookies"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
+			t.Error("wrong resp data")
+		} else {
+			got = true
+		}
+	})
 	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestUrlencodedPost(t *testing.T) {
+	s := NewSpider()
+	got := false
+	s.NewTask(MustNewPostReq(
+		"https://httpbin.org/post",
+		UrlencodedPostData,
+		map[string]string{
+			"Goribot test": "hello world",
+		}),
+		func(ctx *Context) {
+			t.Log("got resp data", ctx.Text)
+			if ctx.Json["form"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
+				t.Error("wrong resp data")
+			} else {
+				got = true
+			}
+		})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestJsonPost(t *testing.T) {
+	s := NewSpider()
+	got := false
+	s.NewTask(MustNewPostReq(
+		"https://httpbin.org/post", JsonPostData, map[string]string{
+			"Goribot test": "hello world",
+		}),
+		func(ctx *Context) {
+			t.Log("got resp data", ctx.Text)
+			if ctx.Json["json"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
+				t.Error("wrong resp data")
+			} else {
+				got = true
+			}
+		})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestCtxNewReq(t *testing.T) {
+	s := NewSpider()
+	got := false
+	s.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
+		ctx.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
+			t.Log("got resp data", ctx.Text)
+			if ctx.Json["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
+				t.Error("wrong resp data")
+			} else {
+				got = true
+			}
+		})
+	})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestOnHandlers(t *testing.T) {
+	s := NewSpider()
+	resp, task, item, onerr := false, false, false, false
+	got := false
+	s.AddRespHandler(func(ctx *Context) {
+		t.Log("on resp")
+		resp = true
+	})
+	s.AddTaskHandler(func(ctx *Context, k *Task) *Task {
+		t.Log("on task", t)
+		task = true
+		return k
+	})
+	s.AddItemHandler(func(ctx *Context, i interface{}) interface{} {
+		t.Log("on item", i)
+		item = true
+		return i
+	})
+	s.AddErrorHandler(func(ctx *Context, err error) {
+		t.Log("on error", err)
+		onerr = true
+	})
+	s.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
+		got = true
+		ctx.AddItem(1)
+	})
+	s.NewTask(MustNewGetReq("/"), func(ctx *Context) {})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+	if (!resp) || (!task) || (!item) || (!onerr) {
+		t.Error("handlers func wrong")
+	}
 }

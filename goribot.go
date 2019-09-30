@@ -2,123 +2,245 @@ package goribot
 
 import (
 	"encoding/json"
+	"github.com/PuerkitoBio/goquery"
 	"log"
-	"math/rand"
+	"net/http"
 	"net/url"
 	"sync/atomic"
 	"time"
 )
 
-const (
-	UserAgent = "GoRibot"
-)
+const DefaultUA = "Goribot"
 
-type PostDataType int
+type Context struct {
+	Text string
+	Html *goquery.Document
+	Json map[string]interface{}
 
-const (
-	_                  PostDataType = iota
-	TextPostData                    // text/plain
-	UrlencodedPostData              // application/x-www-form-urlencoded
-	JsonPostData                    // application/json
-)
+	Request  *Request
+	Response *Response
 
-type ResponseHandler func(r *Response)
+	Tasks []*Task
+	Items []interface{}
+	Meta  map[string]interface{}
+
+	drop bool
+}
+
+func (c *Context) Drop() {
+	c.drop = true
+}
+func (c *Context) IsDrop() bool {
+	return c.drop
+}
+
+func (c *Context) AddItem(i interface{}) {
+	c.Items = append(c.Items, i)
+}
+func (c *Context) AddTask(r *Task) {
+	c.Tasks = append(c.Tasks, r)
+}
+func (c *Context) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
+	c.Tasks = append(c.Tasks, NewTask(req, RespHandler...))
+}
+func (c *Context) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
+	t := NewTask(req, RespHandler...)
+	t.Meta = meta
+	c.Tasks = append(c.Tasks, t)
+
+}
+
+type Task struct {
+	Request        *Request
+	onRespHandlers []func(ctx *Context)
+	Meta           map[string]interface{}
+}
+
+func NewTask(req *Request, RespHandler ...func(ctx *Context)) *Task {
+	return &Task{Request: req, onRespHandlers: RespHandler}
+}
 
 type Spider struct {
-	UserAgent      string
 	ThreadPoolSize uint64
 	DepthFirst     bool
-	RandSleepRange [2]time.Duration
-	Downloader     func(*Request) (*Response, error)
+	Downloader     func(r *Request) (*Response, error)
 
-	pipeline  []PipelineInterface
-	taskQueue *TaskQueue
+	onRespHandlers  []func(ctx *Context)
+	onTaskHandlers  []func(ctx *Context, req *Task) *Task
+	onItemHandlers  []func(ctx *Context, i interface{}) interface{}
+	onErrorHandlers []func(ctx *Context, err error)
 
+	taskQueue     *TaskQueue
 	workingThread uint64
 }
 
 func NewSpider() *Spider {
 	return &Spider{
 		taskQueue:      NewTaskQueue(),
-		Downloader:     DoRequest,
-		UserAgent:      UserAgent,
+		Downloader:     Download,
 		DepthFirst:     false,
 		ThreadPoolSize: 30,
 	}
 }
 
 func (s *Spider) Run() {
-	worker := func(req *Request) {
+	worker := func(t *Task) {
 		defer atomic.AddUint64(&s.workingThread, ^uint64(0))
-		req = s.handleOnDoRequestPipeline(req)
-		if req == nil {
-			return
+
+		resp, err := s.Downloader(t.Request)
+		ctx := &Context{
+			Request:  t.Request,
+			Response: resp,
+			Items:    []interface{}{},
+			Meta:     t.Meta,
+			drop:     false,
 		}
-		resp, err := s.Downloader(req)
 		if err != nil {
-			log.Println("Downloader Error", err, req.Url.String())
-			s.handleOnErrorPipeline(err)
-			return
+			log.Println("Downloader error", err)
+			s.HandleError(ctx, err)
+		} else {
+			ctx.Text = resp.Text
+			ctx.Html = resp.Html
+			ctx.Json = resp.Json
+
+			s.HandleResp(ctx)
+			if !ctx.IsDrop() {
+				for _, h := range t.onRespHandlers {
+					h(ctx)
+				}
+			}
 		}
-		resp = s.handleOnResponsePipeline(resp)
-		if resp == nil {
-			return
+
+		for _, i := range ctx.Tasks {
+			i = s.HandleTask(ctx, i)
+			if i != nil {
+				s.AddTask(ctx, i)
+			}
 		}
-		s.handleResponse(resp)
+		s.HandleItem(ctx)
 	}
-	for {
-		if s.taskQueue.IsEmpty() && atomic.LoadUint64(&s.workingThread) == 0 { // make sure the queue is empty and no threat is working
-			break
-		} else if (!s.taskQueue.IsEmpty()) && (atomic.LoadUint64(&s.workingThread) < s.ThreadPoolSize || s.ThreadPoolSize == 0) {
+
+	for (!s.taskQueue.IsEmpty()) || atomic.LoadUint64(&s.workingThread) > 0 {
+		if (!s.taskQueue.IsEmpty()) && (atomic.LoadUint64(&s.workingThread) < s.ThreadPoolSize || s.ThreadPoolSize == 0) {
 			atomic.AddUint64(&s.workingThread, 1)
 			go worker(s.taskQueue.Pop())
-			randSleep(s.RandSleepRange[0], s.RandSleepRange[1])
 		} else {
 			time.Sleep(100 * time.Nanosecond)
 		}
 	}
 }
-func (s *Spider) handleResponse(response *Response) {
-	for _, h := range response.Request.Handler {
-		h(response)
-	}
-}
 
-// Add a new task to the queue
-func (s *Spider) Crawl(preResp *Response, r *Request) {
-	r = s.handleOnNewRequestPipeline(preResp, r)
-	if r == nil {
+func (s *Spider) AddTask(ctx *Context, t *Task) {
+	t = s.HandleTask(ctx, t)
+	if t == nil {
 		return
 	}
 
-	if r.Header.Get("User-Agent") == "" {
-		r.Header.Set("User-Agent", s.UserAgent)
+	if t.Request.Header.Get("User-Agent") == "" {
+		t.Request.Header.Set("User-Agent", DefaultUA)
 	}
 
 	if s.DepthFirst {
-		s.taskQueue.PushInHead(r)
+		s.taskQueue.PushInHead(t)
 	} else {
-		s.taskQueue.Push(r)
+		s.taskQueue.Push(t)
 	}
 }
-func (s *Spider) NewGetRequest(u string, handler ...ResponseHandler) (*Request, error) {
-	req, err := NewGetRequest(u)
+
+var TodoContext = &Context{
+	Text:     "",
+	Html:     &goquery.Document{},
+	Json:     map[string]interface{}{},
+	Request:  &Request{},
+	Response: &Response{},
+	Tasks:    []*Task{},
+	Items:    []interface{}{},
+	Meta:     map[string]interface{}{},
+	drop:     false,
+}
+
+func (s *Spider) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
+	s.AddTask(TodoContext, NewTask(req, RespHandler...))
+}
+func (s *Spider) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
+	t := NewTask(req, RespHandler...)
+	t.Meta = meta
+	s.AddTask(TodoContext, t)
+}
+
+func (s *Spider) HandleResp(ctx *Context) {
+	for _, h := range s.onRespHandlers {
+		h(ctx)
+		if ctx.IsDrop() == true {
+			return
+		}
+	}
+}
+func (s *Spider) HandleTask(ctx *Context, t *Task) *Task {
+	for _, h := range s.onTaskHandlers {
+		t = h(ctx, t)
+		if t == nil {
+			return nil
+		}
+	}
+	return t
+}
+func (s *Spider) HandleItem(ctx *Context) {
+	for _, h := range s.onItemHandlers {
+		for _, i := range ctx.Items {
+			i = h(ctx, i)
+			if i == nil {
+				return
+			}
+		}
+	}
+}
+func (s *Spider) HandleError(ctx *Context, err error) {
+	for _, h := range s.onErrorHandlers {
+		h(ctx, err)
+	}
+}
+
+func (s *Spider) AddRespHandler(h func(ctx *Context)) {
+	s.onRespHandlers = append(s.onRespHandlers, h)
+}
+func (s *Spider) AddTaskHandler(h func(ctx *Context, k *Task) *Task) {
+	s.onTaskHandlers = append(s.onTaskHandlers, h)
+}
+func (s *Spider) AddItemHandler(h func(ctx *Context, i interface{}) interface{}) {
+	s.onItemHandlers = append(s.onItemHandlers, h)
+}
+func (s *Spider) AddErrorHandler(h func(ctx *Context, err error)) {
+	s.onErrorHandlers = append(s.onErrorHandlers, h)
+}
+
+func NewGetReq(rawurl string) (*Request, error) {
+	req := NewRequest()
+	u, err := url.Parse(rawurl)
 	if err != nil {
 		return nil, err
 	}
-	req.Handler = handler
+	req.Url = u
+	req.Method = http.MethodGet
 	return req, nil
 }
-func (s *Spider) Get(preResp *Response, u string, handler ...ResponseHandler) error {
-	req, err := s.NewGetRequest(u, handler...)
+func MustNewGetReq(rawurl string) *Request {
+	res, err := NewGetReq(rawurl)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	s.Crawl(preResp, req)
-	return nil
+	return res
 }
 
-func (s *Spider) NewPostRequest(u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) (*Request, error) {
+func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Request, error) {
+	req := NewRequest()
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	req.Url = u
+	req.Method = http.MethodPost
+
 	var data []byte
 	ct := ""
 	switch datatype {
@@ -144,77 +266,16 @@ func (s *Spider) NewPostRequest(u string, datatype PostDataType, rawdata interfa
 		data = tdata
 		break
 	}
-	req, err := NewPostRequest(u, data, ct)
-	if err != nil {
-		return nil, err
-	}
-	req.Handler = handler
+
+	req.Header.Set("Content-Type", ct)
+	req.Body = data
+
 	return req, nil
 }
-func (s *Spider) Post(preResp *Response, u string, datatype PostDataType, rawdata interface{}, handler ...ResponseHandler) error {
-	req, err := s.NewPostRequest(u, datatype, rawdata, handler...)
+func MustNewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) *Request {
+	res, err := NewPostReq(rawurl, datatype, rawdata)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	s.Crawl(preResp, req)
-	return nil
-}
-
-// Pipeline handlers and register
-func (s *Spider) Use(p PipelineInterface) {
-	p.Init(s)
-	s.pipeline = append(s.pipeline, p)
-}
-func (s *Spider) handleInitPipeline() {
-	for _, p := range s.pipeline {
-		p.Init(s)
-	}
-}
-func (s *Spider) handleOnNewRequestPipeline(preResp *Response, r *Request) *Request {
-	for _, p := range s.pipeline {
-		r = p.OnNewRequest(s, preResp, r)
-		if r == nil {
-			return nil
-		}
-	}
-	return r
-}
-func (s *Spider) handleOnDoRequestPipeline(r *Request) *Request {
-	for _, p := range s.pipeline {
-		r = p.OnDoRequest(s, r)
-		if r == nil {
-			return nil
-		}
-	}
-	return r
-}
-func (s *Spider) handleOnResponsePipeline(r *Response) *Response {
-	for _, p := range s.pipeline {
-		r = p.OnResponse(s, r)
-		if r == nil {
-			return nil
-		}
-	}
-	return r
-}
-func (s *Spider) handleOnErrorPipeline(err error) {
-	for _, p := range s.pipeline {
-		p.OnError(s, err)
-	}
-}
-func (s *Spider) NewItem(item interface{}) {
-	for _, p := range s.pipeline {
-		item = p.OnItem(s, item)
-		if item == nil {
-			return
-		}
-	}
-}
-
-func randSleep(min, max time.Duration) {
-	if min >= max || max == 0 {
-		return
-	}
-	s := rand.NewSource(time.Now().Unix())
-	time.Sleep(time.Duration(rand.New(s).Int63n(int64(max)-int64(min)) + int64(min)))
+	return res
 }
