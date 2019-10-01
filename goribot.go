@@ -74,13 +74,17 @@ type Spider struct {
 	workingThread uint64
 }
 
-func NewSpider() *Spider {
-	return &Spider{
+func NewSpider(exts ...func(s *Spider)) *Spider {
+	s := &Spider{
 		taskQueue:      NewTaskQueue(),
 		Downloader:     Download,
 		DepthFirst:     true,
 		ThreadPoolSize: 30,
 	}
+	for _, e := range exts {
+		e(s)
+	}
+	return s
 }
 
 func (s *Spider) Run() {
@@ -97,13 +101,13 @@ func (s *Spider) Run() {
 		}
 		if err != nil {
 			log.Println("Downloader error", err)
-			s.HandleError(ctx, err)
+			s.handleError(ctx, err)
 		} else {
 			ctx.Text = resp.Text
 			ctx.Html = resp.Html
 			ctx.Json = resp.Json
 
-			s.HandleResp(ctx)
+			s.handleResp(ctx)
 			if !ctx.IsDrop() {
 				for _, h := range t.onRespHandlers {
 					h(ctx)
@@ -112,12 +116,12 @@ func (s *Spider) Run() {
 		}
 
 		for _, i := range ctx.Tasks {
-			i = s.HandleTask(ctx, i)
+			i = s.handleTask(ctx, i)
 			if i != nil {
 				s.AddTask(ctx, i)
 			}
 		}
-		s.HandleItem(ctx)
+		s.handleItem(ctx)
 	}
 
 	for (!s.taskQueue.IsEmpty()) || atomic.LoadUint64(&s.workingThread) > 0 {
@@ -131,7 +135,7 @@ func (s *Spider) Run() {
 }
 
 func (s *Spider) AddTask(ctx *Context, t *Task) {
-	t = s.HandleTask(ctx, t)
+	t = s.handleTask(ctx, t)
 	if t == nil {
 		return
 	}
@@ -168,7 +172,7 @@ func (s *Spider) NewTaskWithMeta(req *Request, meta map[string]interface{}, Resp
 	s.AddTask(TodoContext, t)
 }
 
-func (s *Spider) HandleResp(ctx *Context) {
+func (s *Spider) handleResp(ctx *Context) {
 	for _, h := range s.onRespHandlers {
 		h(ctx)
 		if ctx.IsDrop() == true {
@@ -176,7 +180,7 @@ func (s *Spider) HandleResp(ctx *Context) {
 		}
 	}
 }
-func (s *Spider) HandleTask(ctx *Context, t *Task) *Task {
+func (s *Spider) handleTask(ctx *Context, t *Task) *Task {
 	for _, h := range s.onTaskHandlers {
 		t = h(ctx, t)
 		if t == nil {
@@ -185,7 +189,7 @@ func (s *Spider) HandleTask(ctx *Context, t *Task) *Task {
 	}
 	return t
 }
-func (s *Spider) HandleItem(ctx *Context) {
+func (s *Spider) handleItem(ctx *Context) {
 	for _, h := range s.onItemHandlers {
 		for _, i := range ctx.Items {
 			i = h(ctx, i)
@@ -195,22 +199,22 @@ func (s *Spider) HandleItem(ctx *Context) {
 		}
 	}
 }
-func (s *Spider) HandleError(ctx *Context, err error) {
+func (s *Spider) handleError(ctx *Context, err error) {
 	for _, h := range s.onErrorHandlers {
 		h(ctx, err)
 	}
 }
 
-func (s *Spider) AddRespHandler(h func(ctx *Context)) {
+func (s *Spider) OnResp(h func(ctx *Context)) {
 	s.onRespHandlers = append(s.onRespHandlers, h)
 }
-func (s *Spider) AddTaskHandler(h func(ctx *Context, k *Task) *Task) {
+func (s *Spider) OnTask(h func(ctx *Context, k *Task) *Task) {
 	s.onTaskHandlers = append(s.onTaskHandlers, h)
 }
-func (s *Spider) AddItemHandler(h func(ctx *Context, i interface{}) interface{}) {
+func (s *Spider) OnItem(h func(ctx *Context, i interface{}) interface{}) {
 	s.onItemHandlers = append(s.onItemHandlers, h)
 }
-func (s *Spider) AddErrorHandler(h func(ctx *Context, err error)) {
+func (s *Spider) OnError(h func(ctx *Context, err error)) {
 	s.onErrorHandlers = append(s.onErrorHandlers, h)
 }
 

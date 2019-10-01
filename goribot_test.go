@@ -130,21 +130,21 @@ func TestOnHandlers(t *testing.T) {
 	s := NewSpider()
 	resp, task, item, onerr := false, false, false, false
 	got := false
-	s.AddRespHandler(func(ctx *Context) {
+	s.OnResp(func(ctx *Context) {
 		t.Log("on resp")
 		resp = true
 	})
-	s.AddTaskHandler(func(ctx *Context, k *Task) *Task {
+	s.OnTask(func(ctx *Context, k *Task) *Task {
 		t.Log("on task", t)
 		task = true
 		return k
 	})
-	s.AddItemHandler(func(ctx *Context, i interface{}) interface{} {
+	s.OnItem(func(ctx *Context, i interface{}) interface{} {
 		t.Log("on item", i)
 		item = true
 		return i
 	})
-	s.AddErrorHandler(func(ctx *Context, err error) {
+	s.OnError(func(ctx *Context, err error) {
 		t.Log("on error", err)
 		onerr = true
 	})
@@ -211,7 +211,7 @@ func TestDFS(t *testing.T) {
 func TestCtxDrop(t *testing.T) {
 	s := NewSpider()
 
-	s.AddRespHandler(func(ctx *Context) {
+	s.OnResp(func(ctx *Context) {
 		ctx.Drop()
 	})
 
@@ -225,7 +225,7 @@ func TestCtxDrop(t *testing.T) {
 func TestTaskWithMeta(t *testing.T) {
 	s := NewSpider()
 
-	s.AddRespHandler(func(ctx *Context) {
+	s.OnResp(func(ctx *Context) {
 		if d, ok := ctx.Meta["test"]; !ok {
 			t.Error("can't find meta")
 		} else {
