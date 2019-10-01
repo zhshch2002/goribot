@@ -88,6 +88,25 @@ func TestJsonPost(t *testing.T) {
 	}
 }
 
+func TestTextPost(t *testing.T) {
+	s := NewSpider()
+	got := false
+	s.NewTask(MustNewPostReq(
+		"https://httpbin.org/post", TextPostData, "hello world"),
+		func(ctx *Context) {
+			t.Log("got resp data", ctx.Text)
+			if ctx.Json["data"].(string) != "hello world" {
+				t.Error("wrong resp data")
+			} else {
+				got = true
+			}
+		})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
 func TestCtxNewReq(t *testing.T) {
 	s := NewSpider()
 	got := false
@@ -140,5 +159,92 @@ func TestOnHandlers(t *testing.T) {
 	}
 	if (!resp) || (!task) || (!item) || (!onerr) {
 		t.Error("handlers func wrong")
+	}
+}
+
+func TestBFS(t *testing.T) {
+	s := NewSpider()
+	s.DepthFirst = false
+	got := false
+
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Log("got No.1")
+		got = true
+	})
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Log("got No.2")
+		if got {
+			t.Error("wrong request order")
+		}
+		got = true
+	})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestDFS(t *testing.T) {
+	s := NewSpider()
+	s.DepthFirst = false
+	got := false
+
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Log("got No.1")
+		if got {
+			t.Error("wrong request order")
+		}
+		got = true
+	})
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Log("got No.2")
+		got = true
+	})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestCtxDrop(t *testing.T) {
+	s := NewSpider()
+
+	s.AddRespHandler(func(ctx *Context) {
+		ctx.Drop()
+	})
+
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Error("drop error")
+	})
+
+	s.Run()
+}
+
+func TestTaskWithMeta(t *testing.T) {
+	s := NewSpider()
+
+	s.AddRespHandler(func(ctx *Context) {
+		if d, ok := ctx.Meta["test"]; !ok {
+			t.Error("can't find meta")
+		} else {
+			t.Log("Meta 'test' data", d)
+		}
+
+	})
+
+	got := false
+	s.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface{}{
+		"test": 1,
+	}, func(ctx *Context) {
+		ctx.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface{}{
+			"test": 2,
+		}, func(ctx *Context) {
+			got = true
+		})
+	})
+
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
 	}
 }

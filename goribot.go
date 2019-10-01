@@ -41,7 +41,7 @@ func (c *Context) AddTask(r *Task) {
 	c.Tasks = append(c.Tasks, r)
 }
 func (c *Context) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
-	c.Tasks = append(c.Tasks, NewTask(req, RespHandler...))
+	c.AddTask(NewTask(req, RespHandler...))
 }
 func (c *Context) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
 	t := NewTask(req, RespHandler...)
@@ -78,7 +78,7 @@ func NewSpider() *Spider {
 	return &Spider{
 		taskQueue:      NewTaskQueue(),
 		Downloader:     Download,
-		DepthFirst:     false,
+		DepthFirst:     true,
 		ThreadPoolSize: 30,
 	}
 }
