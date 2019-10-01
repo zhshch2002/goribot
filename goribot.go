@@ -111,6 +111,9 @@ func (s *Spider) Run() {
 			if !ctx.IsDrop() {
 				for _, h := range t.onRespHandlers {
 					h(ctx)
+					if ctx.IsDrop() {
+						break
+					}
 				}
 			}
 		}
