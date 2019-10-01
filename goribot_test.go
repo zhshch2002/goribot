@@ -164,18 +164,19 @@ func TestOnHandlers(t *testing.T) {
 
 func TestBFS(t *testing.T) {
 	s := NewSpider()
+	s.ThreadPoolSize = 1
 	s.DepthFirst = false
 	got := false
 
 	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
 		t.Log("got No.1")
+		if got {
+			t.Error("wrong request order")
+		}
 		got = true
 	})
 	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
 		t.Log("got No.2")
-		if got {
-			t.Error("wrong request order")
-		}
 		got = true
 	})
 	s.Run()
@@ -186,17 +187,18 @@ func TestBFS(t *testing.T) {
 
 func TestDFS(t *testing.T) {
 	s := NewSpider()
-	s.DepthFirst = false
+	s.ThreadPoolSize = 1
+	s.DepthFirst = true
 	got := false
 
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		got = true
+	})
 	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
 		t.Log("got No.1")
 		if got {
 			t.Error("wrong request order")
 		}
-		got = true
-	})
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
 		t.Log("got No.2")
 		got = true
 	})
