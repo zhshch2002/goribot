@@ -1,6 +1,7 @@
 package goribot
 
 import (
+	"net/http"
 	"testing"
 )
 
@@ -59,6 +60,33 @@ func TestRobotsTxt(t *testing.T) {
 	})
 	s.Run()
 	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestReqDeduplicate(t *testing.T) {
+	got1, got2 := false, false
+	s := NewSpider(
+		ReqDeduplicate(),
+	)
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		got1 = true
+		t.Log("got first")
+		r := MustNewGetReq("https://httpbin.org/get")
+		r.Cookie = append(r.Cookie, &http.Cookie{
+			Name:  "123",
+			Value: "123",
+		})
+		ctx.NewTask(r, func(ctx *Context) {
+			t.Log("got second")
+			got2 = true
+		})
+	})
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Error("Deduplicate error")
+	})
+	s.Run()
+	if (!got1) || (!got2) {
 		t.Error("didn't get data")
 	}
 }

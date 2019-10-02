@@ -119,10 +119,7 @@ func (s *Spider) Run() {
 		}
 
 		for _, i := range ctx.Tasks {
-			i = s.handleTask(ctx, i)
-			if i != nil {
-				s.AddTask(ctx, i)
-			}
+			s.AddTask(ctx, i)
 		}
 		s.handleItem(ctx)
 	}

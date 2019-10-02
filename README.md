@@ -9,7 +9,8 @@ A golang spider framework.
 # Features
 * Clean API
 * Pipeline-style handle logic
-* Robots.txt support
+* Robots.txt support (ues `RobotsTxt` extensions)
+* Request Deduplicate (ues `ReqDeduplicate` extensions)
 * Extensions
 
 # Example
@@ -196,4 +197,4 @@ func main() {
     * [ ] 随机代理
 * `Spider`主体功能
     * [ ] 随机延时
-    * [ ] 去重复
+    * [x] 去重复

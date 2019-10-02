@@ -1,11 +1,13 @@
 package goribot
 
 import (
+	"crypto/md5"
 	"github.com/slyrz/robots"
 	"log"
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -59,6 +61,25 @@ func RobotsTxt(baseUrl, ua string) func(s *Spider) {
 		})
 	}
 
+}
+func ReqDeduplicate() func(s *Spider) {
+	CrawledHash := map[[md5.Size]byte]struct{}{}
+	lock := sync.Mutex{}
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, t *Task) *Task {
+			has := GetRequestHash(t.Request)
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			if _, ok := CrawledHash[has]; ok {
+				return nil
+			}
+
+			CrawledHash[has] = struct{}{}
+			return t
+		})
+	}
 }
 
 var uaList = []string{
