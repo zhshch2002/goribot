@@ -5,6 +5,7 @@ A golang spider framework.
 [![go-report](https://goreportcard.com/badge/github.com/zhshch2002/goribot)](https://goreportcard.com/report/github.com/zhshch2002/goribot)
 ![license](https://img.shields.io/github/license/zhshch2002/goribot)
 ![code-size](https://img.shields.io/github/languages/code-size/zhshch2002/goribot.svg)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot?ref=badge_shield)
 
 # Features
 * Clean API
@@ -198,3 +199,6 @@ func main() {
 * `Spider`主体功能
     * [ ] 随机延时
     * [x] 去重复
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot?ref=badge_large)
