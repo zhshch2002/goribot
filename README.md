@@ -7,6 +7,7 @@ A golang spider framework.
 ![code-size](https://img.shields.io/github/languages/code-size/zhshch2002/goribot.svg)
 
 # Example
+一个简单的实例：
 ```go
 package main
 
@@ -24,8 +25,8 @@ func main() {
         })
     s.Run()
 }
-
 ```
+[完整的B站视频爬虫的例子](#another-example)
 
 # Start to use
 ## install
@@ -119,6 +120,65 @@ s.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface
 ### Run it！
 经过上述初始化操作，需要执行`s.Run()`来启动蜘蛛。调用该函数将阻塞程序直到所有任务执行完毕。
 
+# Another Example
+A bilibili video spider:
+```go
+package main
+
+import (
+	"github.com/PuerkitoBio/goquery"
+	"github.com/zhshch2002/goribot"
+	"log"
+	"strings"
+)
+
+type BiliVideoItem struct {
+	Title, Url string
+}
+
+func main() {
+	s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.RandomUserAgent)
+	s.DepthFirst = false
+	s.ThreadPoolSize = 1
+
+	var biliVideoHandler, getNewLinkHandler func(ctx *goribot.Context)
+	getNewLinkHandler = func(ctx *goribot.Context) {
+		ctx.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
+			rawurl, _ := selection.Attr("href")
+			if !strings.HasPrefix(rawurl, "/video/av") {
+				return
+			}
+			u, err := ctx.Request.Url.Parse(rawurl)
+			if err != nil {
+				return
+			}
+			u.RawQuery = ""
+			if strings.HasSuffix(u.Path, "/") {
+				u.Path = u.Path[0 : len(u.Path)-1]
+			}
+			//log.Println(u.String())
+			if r, err := goribot.NewGetReq(u.String()); err == nil {
+				ctx.NewTask(r, getNewLinkHandler, biliVideoHandler)
+			}
+		})
+	}
+	biliVideoHandler = func(ctx *goribot.Context) {
+		ctx.AddItem(BiliVideoItem{
+			Title: ctx.Html.Find("title").Text(),
+			Url:   ctx.Request.Url.String(),
+		})
+	}
+
+	s.NewTask(goribot.MustNewGetReq("https://www.bilibili.com/video/av66703342"), getNewLinkHandler, biliVideoHandler)
+	s.OnItem(func(ctx *goribot.Context, i interface{}) interface{} {
+		log.Println(i) // 可以做一些数据存储工作
+		return i
+	})
+
+	s.Run()
+}
+```
+
 # TODO
 * 制作更多的内建插件`extensions`
     * [x] 随机UA
@@ -129,3 +189,4 @@ s.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface
     * [ ] 随机代理
 * `Spider`主体功能
     * [ ] 随机延时
+    * [ ] 去重复

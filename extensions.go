@@ -19,6 +19,21 @@ func RandomUserAgent(s *Spider) {
 	})
 }
 
+func HostFilter(h ...string) func(s *Spider) {
+	WhiteList := map[string]struct{}{}
+	for _, i := range h {
+		WhiteList[i] = struct{}{}
+	}
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, k *Task) *Task {
+			if _, ok := WhiteList[k.Request.Url.Host]; ok {
+				return k
+			}
+			return nil
+		})
+	}
+}
+
 var uaList = []string{
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
 	"Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/44.0.2403.155 Safari/537.36",
