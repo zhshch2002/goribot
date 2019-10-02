@@ -211,7 +211,7 @@ func (s *Spider) handleError(ctx *Context, err error) {
 func (s *Spider) OnResp(h func(ctx *Context)) {
 	s.onRespHandlers = append(s.onRespHandlers, h)
 }
-func (s *Spider) OnTask(h func(ctx *Context, k *Task) *Task) {
+func (s *Spider) OnTask(h func(ctx *Context, t *Task) *Task) {
 	s.onTaskHandlers = append(s.onTaskHandlers, h)
 }
 func (s *Spider) OnItem(h func(ctx *Context, i interface{}) interface{}) {

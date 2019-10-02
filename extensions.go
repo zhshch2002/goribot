@@ -1,7 +1,11 @@
 package goribot
 
 import (
+	"github.com/slyrz/robots"
+	"log"
 	"math/rand"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -32,6 +36,29 @@ func HostFilter(h ...string) func(s *Spider) {
 			return nil
 		})
 	}
+}
+
+func RobotsTxt(baseUrl, ua string) func(s *Spider) {
+	if !strings.HasSuffix(baseUrl, "/") {
+		baseUrl += "/"
+	}
+	resp, err := http.Get(baseUrl + "robots.txt")
+	defer resp.Body.Close()
+	if err != nil {
+		log.Println("get robots.txt error", err)
+		return func(s *Spider) {}
+	}
+
+	RobotsTxt := robots.New(resp.Body, ua)
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, t *Task) *Task {
+			if RobotsTxt.Allow(t.Request.Url.Path) {
+				return t
+			}
+			return nil
+		})
+	}
+
 }
 
 var uaList = []string{

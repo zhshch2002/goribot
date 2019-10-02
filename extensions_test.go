@@ -40,3 +40,25 @@ func TestHostFilter(t *testing.T) {
 		t.Error("didn't get data")
 	}
 }
+
+func TestRobotsTxt(t *testing.T) {
+	s := NewSpider(
+		RobotsTxt("https://github.com/", "Goribot"),
+	)
+	s.NewTask(MustNewGetReq("https://github.com/zhshch2002"), func(ctx *Context) { // unable to access according to https://github.com/robots.txt
+		t.Error("RobotsTxt error")
+	})
+	s.Run()
+
+	s = NewSpider(
+		RobotsTxt("https://github.com/", "Googlebot"),
+	)
+	got := false
+	s.NewTask(MustNewGetReq("https://github.com/zhshch2002/goribot/wiki"), func(ctx *Context) {
+		got = true
+	})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}

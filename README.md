@@ -6,6 +6,12 @@ A golang spider framework.
 ![license](https://img.shields.io/github/license/zhshch2002/goribot)
 ![code-size](https://img.shields.io/github/languages/code-size/zhshch2002/goribot.svg)
 
+# Features
+* Clean API
+* Pipeline-style handle logic
+* Robots.txt support
+* Extensions
+
 # Example
 一个简单的实例：
 ```go
@@ -126,56 +132,56 @@ A bilibili video spider:
 package main
 
 import (
-	"github.com/PuerkitoBio/goquery"
-	"github.com/zhshch2002/goribot"
-	"log"
-	"strings"
+    "github.com/PuerkitoBio/goquery"
+    "github.com/zhshch2002/goribot"
+    "log"
+    "strings"
 )
 
 type BiliVideoItem struct {
-	Title, Url string
+    Title, Url string
 }
 
 func main() {
-	s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.RandomUserAgent)
-	s.DepthFirst = false
-	s.ThreadPoolSize = 1
+    s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.RandomUserAgent)
+    s.DepthFirst = false
+    s.ThreadPoolSize = 1
 
-	var biliVideoHandler, getNewLinkHandler func(ctx *goribot.Context)
-	getNewLinkHandler = func(ctx *goribot.Context) {
-		ctx.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
-			rawurl, _ := selection.Attr("href")
-			if !strings.HasPrefix(rawurl, "/video/av") {
-				return
-			}
-			u, err := ctx.Request.Url.Parse(rawurl)
-			if err != nil {
-				return
-			}
-			u.RawQuery = ""
-			if strings.HasSuffix(u.Path, "/") {
-				u.Path = u.Path[0 : len(u.Path)-1]
-			}
-			//log.Println(u.String())
-			if r, err := goribot.NewGetReq(u.String()); err == nil {
-				ctx.NewTask(r, getNewLinkHandler, biliVideoHandler)
-			}
-		})
-	}
-	biliVideoHandler = func(ctx *goribot.Context) {
-		ctx.AddItem(BiliVideoItem{
-			Title: ctx.Html.Find("title").Text(),
-			Url:   ctx.Request.Url.String(),
-		})
-	}
+    var biliVideoHandler, getNewLinkHandler func(ctx *goribot.Context)
+    getNewLinkHandler = func(ctx *goribot.Context) {
+        ctx.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
+            rawurl, _ := selection.Attr("href")
+            if !strings.HasPrefix(rawurl, "/video/av") {
+                return
+            }
+            u, err := ctx.Request.Url.Parse(rawurl)
+            if err != nil {
+                return
+            }
+            u.RawQuery = ""
+            if strings.HasSuffix(u.Path, "/") {
+                u.Path = u.Path[0 : len(u.Path)-1]
+            }
+            //log.Println(u.String())
+            if r, err := goribot.NewGetReq(u.String()); err == nil {
+                ctx.NewTask(r, getNewLinkHandler, biliVideoHandler)
+            }
+        })
+    }
+    biliVideoHandler = func(ctx *goribot.Context) {
+        ctx.AddItem(BiliVideoItem{
+            Title: ctx.Html.Find("title").Text(),
+            Url:   ctx.Request.Url.String(),
+        })
+    }
 
-	s.NewTask(goribot.MustNewGetReq("https://www.bilibili.com/video/av66703342"), getNewLinkHandler, biliVideoHandler)
-	s.OnItem(func(ctx *goribot.Context, i interface{}) interface{} {
-		log.Println(i) // 可以做一些数据存储工作
-		return i
-	})
+    s.NewTask(goribot.MustNewGetReq("https://www.bilibili.com/video/av66703342"), getNewLinkHandler, biliVideoHandler)
+    s.OnItem(func(ctx *goribot.Context, i interface{}) interface{} {
+        log.Println(i) // 可以做一些数据存储工作
+        return i
+    })
 
-	s.Run()
+    s.Run()
 }
 ```
 
@@ -183,9 +189,10 @@ func main() {
 * 制作更多的内建插件`extensions`
     * [x] 随机UA
     * [ ] 自动添加Referer
-    * [ ] Robots.txt解析
+    * [x] Robots.txt解析
     * [ ] 最大请求数限制
-    * [ ] Host和URL过滤
+    * [x] Host过滤
+    * [ ] URL过滤
     * [ ] 随机代理
 * `Spider`主体功能
     * [ ] 随机延时
