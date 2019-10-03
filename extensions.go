@@ -45,11 +45,11 @@ func RobotsTxt(baseUrl, ua string) func(s *Spider) {
 		baseUrl += "/"
 	}
 	resp, err := http.Get(baseUrl + "robots.txt")
-	defer resp.Body.Close()
 	if err != nil {
 		log.Println("get robots.txt error", err)
 		return func(s *Spider) {}
 	}
+	defer resp.Body.Close()
 
 	RobotsTxt := robots.New(resp.Body, ua)
 	return func(s *Spider) {

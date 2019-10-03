@@ -22,7 +22,7 @@ func GetRequestHash(r *Request) [md5.Size]byte {
 	if u.RawQuery != "" {
 		QueryParam := u.Query()
 		var QueryK []string
-		for k, _ := range QueryParam {
+		for k := range QueryParam {
 			QueryK = append(QueryK, k)
 		}
 		sort.Strings(QueryK)
@@ -39,7 +39,7 @@ func GetRequestHash(r *Request) [md5.Size]byte {
 
 	Header := r.Header
 	var HeaderK []string
-	for k, _ := range Header {
+	for k := range Header {
 		HeaderK = append(HeaderK, k)
 	}
 	sort.Strings(HeaderK)

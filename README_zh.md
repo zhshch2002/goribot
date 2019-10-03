@@ -1,8 +1,6 @@
 # Goribot
 A golang spider framework.
 
-[中文文档](/zhshch2002/goribot/blob/master/README_zh.md)
-
 [![Codecov](https://img.shields.io/codecov/c/gh/zhshch2002/goribot)](https://codecov.io/gh/zhshch2002/goribot)
 [![go-report](https://goreportcard.com/badge/github.com/zhshch2002/goribot)](https://goreportcard.com/report/github.com/zhshch2002/goribot)
 ![license](https://img.shields.io/github/license/zhshch2002/goribot)
@@ -16,7 +14,7 @@ A golang spider framework.
 * Extensions
 
 # Example
-a basic example：
+一个简单的实例：
 ```go
 package main
 
@@ -35,7 +33,7 @@ func main() {
     s.Run()
 }
 ```
-[a complete bilibili.com video spider example](#another-example)
+[完整的B站视频爬虫的例子](#another-example)
 
 # Start to use
 ## install
@@ -43,45 +41,45 @@ func main() {
 go get -u github.com/zhshch2002/goribot
 ```
 
-## basic ues
-### create spider
+## 基本使用
+### 创建蜘蛛
 ```go
 s := goribot.NewSpider()
 ```
-you can also init the spider by extensions,like the RandomUserAgent extension:
+此期间允许使用插件来初始化蜘蛛，例如使用随机UA组件：
 ```go
 s := NewSpider(RandomUserAgent)
 ```
 
-### New task
-create a request：
+### 创建任务
+建立一个请求：
 ```go
 req:=goribot.MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello")
-// or req,err := goribot.NewGetReq("https://httpbin.org/get?Goribot%20test=hello")
+// 或者 req,err := goribot.NewGetReq("https://httpbin.org/get?Goribot%20test=hello")
 
-// config the request
-req.Header.Set("test", "test")
-req.Cookie = append(req.Cookie, &http.Cookie{
+// 配置请求
+req.Header.Set("test", "test") // 设置请求头部
+req.Cookie = append(req.Cookie, &http.Cookie{ // 添加Cookie
     Name:  "test",
     Value: "test",
 })
-req.Proxy = "http://127.0.0.1:1080"
+req.Proxy = "http://127.0.0.1:1080" // 配置代理
 ```
 
-Add the request to spider task queue：
+向蜘蛛添加任务：
 ```go
-var thirdHandler func(*goribot.Context)
+var thirdHandler func(*goribot.Context) // 可选的创建方式
 thirdHandler= func(ctx *goribot.Context) {
     //bu la bu la,do sth
 }
 
 s.NewTask(
-    req, // the request you have created
+    req, // 上文创建的请求
     func(ctx *goribot.Context) {
         // first handler
         fmt.Println("got resp data", ctx.Text)
     },
-    func(ctx *goribot.Context) { // you can set a group of handler func as a chain,or set same func for different request task.
+    func(ctx *goribot.Context) { // 此处可以为一个请求设置多个处理回调函数，或者数个请求共用一个函数
     // second handler
         fmt.Println("got resp data", ctx.Text)
     },
@@ -90,47 +88,46 @@ s.NewTask(
 ```
 
 ### Context
-`Context` is the only param the handler get.You can get the http response or the origin request from it,in addition you can use `ctx` send new request task to spider.
+`Context`是处理函数收到的唯一参数。使用这个参数可以获得蜘蛛从网络获取的数据，也可以像蜘蛛提交新的任务`Task`。
 
 ```go
 type Context struct {
-    Text string // the response text
-    Html *goquery.Document // spider will try to parse the response as html
-    Json map[string]interface{} // spider will try to parse the response as json
+    Text string // 收到的数据转换为字符串类型
+    Html *goquery.Document // 自动尝试将收到的内容解析为Html
+    Json map[string]interface{} // 自动尝试将收到的内容解析为Json
 
-    Request  *Request // origin request
-    Response *Response // a response object
+    Request  *Request // 上文中创建的请求
+    Response *Response // 蜘蛛收到的网络响应，包含响应码、响应头、字节码原始数据等
 
-    Tasks []*Task // the new request task which will send to the spider
-    Items []interface{} // the new result data which will send to the spider，use to store
-    Meta  map[string]interface{} // the request task created by NewTaskWithMeta func will have a k-y pair
+    Tasks []*Task // 执行结束后将要提交给蜘蛛的新任务
+    Items []interface{} // 执行结束后将要提交给蜘蛛的结果数据，用作数据持久化设计
+    Meta  map[string]interface{} // 使用 NewTaskWithMeta 函数添加的任务可以携带一个Key-Val对应的数据
 
-    drop bool // in handlers chain,you can use ctx.Drop() to break the chain and stop handling
+    drop bool // 在多个handler回调函数中可以调用ctx.Drop()函数来中断处理队列，使之后的回调函数不再执行
 }
 ```
 
-create new task inside of handle fun or with meta data：
+从Task内提交新的Task，以及使用Meta变量：
 ```go
 s.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface{}{
     "test": 1,
 }, func(ctx *Context) {
-    fmt.Println(ctx.Meta["test"]) // get the meta data
+    fmt.Println(ctx.Meta["test"]) // 内层函数可以使用外层提供的数据
     
-    // waring: here is the ctx.NewTaskWithMeta func rather than s.NewTaskWithMeta!
+    // 在Handler内创建新的任务，注意这里是ctx.NewTaskWithMeta而非外层的s.NewTaskWithMeta
     ctx.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface{}{
         "test": 2,
     }, func(ctx *Context) {
-        fmt.Println(ctx.Meta["test"]) // get the meta data
+        fmt.Println(ctx.Meta["test"]) // 内层函数可以使用外层提供的数据
     })
 })
 ```
-Tip:It is different between `s.NewTaskWithMeta` and `ctx.NewTaskWithMeta`,when you use the extensions or spider hook func.
+注：`s.NewTaskWithMeta`一般用来爬取种子地址，在用到钩子函数的时候（如：使用RandomUserAgent组件时），使用`ctx.NewTaskWithMeta`和`s.NewTaskWithMeta`对于钩子函数是有区别的。
 
 ### Run it！
-Call the `s.Run()` to run the spider.
+经过上述初始化操作，需要执行`s.Run()`来启动蜘蛛。调用该函数将阻塞程序直到所有任务执行完毕。
 
-## ues the hook func and make extensions
-wait to write.
+## 使用钩子函数与制作扩展组件
 
 # Another Example
 A bilibili video spider:
