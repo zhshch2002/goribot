@@ -1,7 +1,7 @@
 # Goribot
 A golang spider framework.
 
-[中文文档](/zhshch2002/goribot/blob/master/README_zh.md)
+[中文文档](README_zh.md)
 
 [![Codecov](https://img.shields.io/codecov/c/gh/zhshch2002/goribot)](https://codecov.io/gh/zhshch2002/goribot)
 [![go-report](https://goreportcard.com/badge/github.com/zhshch2002/goribot)](https://goreportcard.com/report/github.com/zhshch2002/goribot)
@@ -156,7 +156,6 @@ func main() {
 
     var biliVideoHandler, getNewLinkHandler func(ctx *goribot.Context)
 
-    // 获取新链接
     getNewLinkHandler = func(ctx *goribot.Context) {
         ctx.Html.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
             rawurl, _ := selection.Attr("href")
@@ -178,7 +177,6 @@ func main() {
         })
     }
 
-    // 将数据提取出来
     biliVideoHandler = func(ctx *goribot.Context) {
         ctx.AddItem(BiliVideoItem{
             Title: ctx.Html.Find("title").Text(),
@@ -186,7 +184,6 @@ func main() {
         })
     }
 
-    // 抓取种子链接
     s.NewTask(goribot.MustNewGetReq("https://www.bilibili.com/video/av66703342"), getNewLinkHandler, biliVideoHandler)
     
 
