@@ -48,7 +48,7 @@ s := goribot.NewSpider()
 ```
 此期间允许使用插件来初始化蜘蛛，例如使用随机UA组件：
 ```go
-s := NewSpider(RandomUserAgent)
+s := NewSpider(RandomUserAgent())
 ```
 
 ### 创建任务
@@ -146,7 +146,7 @@ type BiliVideoItem struct {
 }
 
 func main() {
-    s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.ReqDeduplicate(), goribot.RandomUserAgent)
+    s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.ReqDeduplicate(), goribot.RandomUserAgent())
     s.DepthFirst = false
     s.ThreadPoolSize = 1
 

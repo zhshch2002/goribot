@@ -51,7 +51,7 @@ s := goribot.NewSpider()
 ```
 you can also init the spider by extensions,like the RandomUserAgent extension:
 ```go
-s := NewSpider(RandomUserAgent)
+s := NewSpider(RandomUserAgent())
 ```
 
 ### New task
@@ -150,7 +150,7 @@ type BiliVideoItem struct {
 }
 
 func main() {
-    s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.ReqDeduplicate(), goribot.RandomUserAgent)
+    s := goribot.NewSpider(goribot.HostFilter("www.bilibili.com"), goribot.ReqDeduplicate(), goribot.RandomUserAgent())
     s.DepthFirst = false
     s.ThreadPoolSize = 1
 

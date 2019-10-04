@@ -7,7 +7,7 @@ import (
 
 func TestRandomUserAgent(t *testing.T) {
 	s := NewSpider(
-		RandomUserAgent,
+		RandomUserAgent(),
 	)
 	got := false
 	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
@@ -87,6 +87,23 @@ func TestReqDeduplicate(t *testing.T) {
 	})
 	s.Run()
 	if (!got1) || (!got2) {
+		t.Error("didn't get data")
+	}
+}
+
+func TestRefererFiller(t *testing.T) {
+	s := NewSpider(RefererFiller())
+	got :=  false
+	s.NewTask(MustNewGetReq("https://httpbin.org/"), func(ctx *Context) {
+		ctx.NewTask(MustNewGetReq("https://httpbin.org/post"), func(ctx *Context) {
+			got=true
+			if ctx.Request.Header.Get("Referer") != "https://httpbin.org/" {
+				t.Error("Referer error")
+			}
+		})
+	})
+	s.Run()
+	if !got {
 		t.Error("didn't get data")
 	}
 }

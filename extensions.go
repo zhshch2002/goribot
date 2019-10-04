@@ -11,18 +11,20 @@ import (
 	"time"
 )
 
-func RandomUserAgent(s *Spider) {
+func RandomUserAgent() func(s *Spider) {
 	var RandSrc int64 = 0
-	s.OnTask(func(ctx *Context, k *Task) *Task {
-		if k.Request.Header.Get("User-Agent") == "" {
-			RandSrc += 1
-			rs := rand.NewSource(time.Now().Unix() + RandSrc)
-			ra := rand.New(rs)
-			RandSrc = ra.Int63()
-			k.Request.Header.Set("User-Agent", uaList[ra.Intn(len(uaList))])
-		}
-		return k
-	})
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, k *Task) *Task {
+			if k.Request.Header.Get("User-Agent") == "" {
+				RandSrc += 1
+				rs := rand.NewSource(time.Now().Unix() + RandSrc)
+				ra := rand.New(rs)
+				RandSrc = ra.Int63()
+				k.Request.Header.Set("User-Agent", uaList[ra.Intn(len(uaList))])
+			}
+			return k
+		})
+	}
 }
 
 func HostFilter(h ...string) func(s *Spider) {
@@ -62,6 +64,7 @@ func RobotsTxt(baseUrl, ua string) func(s *Spider) {
 	}
 
 }
+
 func ReqDeduplicate() func(s *Spider) {
 	CrawledHash := map[[md5.Size]byte]struct{}{}
 	lock := sync.Mutex{}
@@ -80,6 +83,18 @@ func ReqDeduplicate() func(s *Spider) {
 			return t
 		})
 	}
+}
+
+func RefererFiller() func(s *Spider) {
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, k *Task) *Task {
+			if ctx != TodoContext {
+				k.Request.Header.Set("Referer", ctx.Response.Request.Url.String())
+			}
+			return k
+		})
+	}
+
 }
 
 var uaList = []string{
