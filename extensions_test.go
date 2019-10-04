@@ -72,11 +72,12 @@ func TestReqDeduplicate(t *testing.T) {
 	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
 		got1 = true
 		t.Log("got first")
-		r := MustNewGetReq("https://httpbin.org/get")
+		r := MustNewGetReq("https://httpbin.org/get?a=1")
 		r.Cookie = append(r.Cookie, &http.Cookie{
 			Name:  "123",
 			Value: "123",
 		})
+		r.Header.Set("hello", "world")
 		ctx.NewTask(r, func(ctx *Context) {
 			t.Log("got second")
 			got2 = true
@@ -93,10 +94,10 @@ func TestReqDeduplicate(t *testing.T) {
 
 func TestRefererFiller(t *testing.T) {
 	s := NewSpider(RefererFiller())
-	got :=  false
+	got := false
 	s.NewTask(MustNewGetReq("https://httpbin.org/"), func(ctx *Context) {
 		ctx.NewTask(MustNewGetReq("https://httpbin.org/post"), func(ctx *Context) {
-			got=true
+			got = true
 			if ctx.Request.Header.Get("Referer") != "https://httpbin.org/" {
 				t.Error("Referer error")
 			}
