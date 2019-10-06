@@ -195,16 +195,5 @@ func main() {
 }
 ```
 
-# TODO
-* 制作更多的内建插件`extensions`
-    * [x] 随机UA
-    * [ ] 自动添加Referer
-    * [x] Robots.txt解析
-    * [ ] 最大请求数限制
-    * [x] Host过滤
-    * [ ] URL过滤
-    * [ ] 随机代理
-    * [x] 去重复
-* `Spider`主体功能
-    * [ ] 随机延时
-    * [ ] 分布式调度
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot?ref=badge_large)

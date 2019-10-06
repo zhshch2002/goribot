@@ -108,3 +108,39 @@ func TestRefererFiller(t *testing.T) {
 		t.Error("didn't get data")
 	}
 }
+
+func TestMaxReqLimiter(t *testing.T) {
+	got := false
+	s := NewSpider(
+		MaxReqLimiter(1),
+	)
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		got = true
+		t.Log("got first")
+	})
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		t.Error("Limiter error")
+	})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
+
+func TestUrlFiller(t *testing.T) {
+	got := false
+	s := NewSpider(
+		UrlFiller(`https://httpbin.org(.*?)`),
+	)
+	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
+		got = true
+		t.Log("got first")
+	})
+	s.NewTask(MustNewGetReq("https://www.baidu.com"), func(ctx *Context) {
+		t.Error("Filler error")
+	})
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}

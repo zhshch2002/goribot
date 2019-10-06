@@ -199,11 +199,11 @@ func main() {
 # TODO
 * 制作更多的内建插件`extensions`
     * [x] 随机UA
-    * [ ] 自动添加Referer
+    * [x] 自动添加Referer
     * [x] Robots.txt解析
-    * [ ] 最大请求数限制
+    * [x] 最大请求数限制
     * [x] Host过滤
-    * [ ] URL过滤
+    * [x] URL过滤
     * [ ] 随机代理
     * [x] 去重复
 * `Spider`主体功能

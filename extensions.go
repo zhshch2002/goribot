@@ -6,8 +6,10 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -94,7 +96,31 @@ func RefererFiller() func(s *Spider) {
 			return k
 		})
 	}
+}
 
+func MaxReqLimiter(m uint64) func(s *Spider) {
+	var count uint64 = 0
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, k *Task) *Task {
+			if atomic.LoadUint64(&count) >= m {
+				return nil
+			}
+			atomic.AddUint64(&count, 1)
+			return k
+		})
+	}
+}
+
+func UrlFiller(str string) func(s *Spider) {
+	reg := regexp.MustCompile(str)
+	return func(s *Spider) {
+		s.OnTask(func(ctx *Context, k *Task) *Task {
+			if !reg.MatchString(k.Request.Url.String()) {
+				return nil
+			}
+			return k
+		})
+	}
 }
 
 var uaList = []string{
