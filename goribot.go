@@ -13,36 +13,45 @@ import (
 const DefaultUA = "Goribot"
 
 type Context struct {
-	Text string
-	Html *goquery.Document
-	Json map[string]interface{}
+	Text string                 // the response text
+	Html *goquery.Document      // spider will try to parse the response as html
+	Json map[string]interface{} // spider will try to parse the response as json
 
-	Request  *Request
-	Response *Response
+	Request  *Request  // origin request
+	Response *Response // a response object
 
-	Tasks []*Task
-	Items []interface{}
-	Meta  map[string]interface{}
+	Tasks []*Task                // the new request task which will send to the spider
+	Items []interface{}          // the new result data which will send to the spider，use to store
+	Meta  map[string]interface{} // the request task created by NewTaskWithMeta func will have a k-y pair
 
-	drop bool
+	drop bool // in handlers chain,you can use ctx.Drop() to break the handler chain and stop handling
 }
 
+// Drop this context to break the handler chain and stop handling
 func (c *Context) Drop() {
 	c.drop = true
 }
+
 func (c *Context) IsDrop() bool {
 	return c.drop
 }
 
+// Add an item to new item list. After every handler func return,spider will collect these items and call OnItem handler func
 func (c *Context) AddItem(i interface{}) {
 	c.Items = append(c.Items, i)
 }
+
+// Add a task to new task list. After every handler func return,spider will collect these tasks
 func (c *Context) AddTask(r *Task) {
 	c.Tasks = append(c.Tasks, r)
 }
+
+// Create a task and add it to new task list After every handler func return,spider will collect these tasks
 func (c *Context) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
 	c.AddTask(NewTask(req, RespHandler...))
 }
+
+// Create a task with meta data and add it to new task list After every handler func return,spider will collect these tasks
 func (c *Context) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
 	t := NewTask(req, RespHandler...)
 	t.Meta = meta
@@ -134,6 +143,7 @@ func (s *Spider) Run() {
 	}
 }
 
+// Add a task to the queue
 func (s *Spider) AddTask(ctx *Context, t *Task) {
 	t = s.handleTask(ctx, t)
 	if t == nil {
@@ -151,6 +161,7 @@ func (s *Spider) AddTask(ctx *Context, t *Task) {
 	}
 }
 
+// If a task created by `spider.NewTask` as seed task,the OnTask handler will get TodoContext as ctx param
 var TodoContext = &Context{
 	Text:     "",
 	Html:     &goquery.Document{},
@@ -163,9 +174,12 @@ var TodoContext = &Context{
 	drop:     false,
 }
 
+// Create a task and add it to the queue
 func (s *Spider) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
 	s.AddTask(TodoContext, NewTask(req, RespHandler...))
 }
+
+// Create a task with meta data and add it to the queue
 func (s *Spider) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
 	t := NewTask(req, RespHandler...)
 	t.Meta = meta
@@ -205,15 +219,22 @@ func (s *Spider) handleError(ctx *Context, err error) {
 	}
 }
 
+// Add an On Response handler func to the spider
 func (s *Spider) OnResp(h func(ctx *Context)) {
 	s.onRespHandlers = append(s.onRespHandlers, h)
 }
+
+// Add an On New Task handler func to the spider
 func (s *Spider) OnTask(h func(ctx *Context, t *Task) *Task) {
 	s.onTaskHandlers = append(s.onTaskHandlers, h)
 }
+
+// Add an On New Item handler func to the spider. For some storage
 func (s *Spider) OnItem(h func(ctx *Context, i interface{}) interface{}) {
 	s.onItemHandlers = append(s.onItemHandlers, h)
 }
+
+// Add an On Error handler func to the spider
 func (s *Spider) OnError(h func(ctx *Context, err error)) {
 	s.onErrorHandlers = append(s.onErrorHandlers, h)
 }
@@ -276,6 +297,7 @@ func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Req
 
 	return req, nil
 }
+
 func MustNewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) *Request {
 	res, err := NewPostReq(rawurl, datatype, rawdata)
 	if err != nil {

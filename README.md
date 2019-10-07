@@ -106,7 +106,7 @@ type Context struct {
     Items []interface{} // the new result data which will send to the spider，use to store
     Meta  map[string]interface{} // the request task created by NewTaskWithMeta func will have a k-y pair
 
-    drop bool // in handlers chain,you can use ctx.Drop() to break the chain and stop handling
+    drop bool // in handlers chain,you can use ctx.Drop() to break the handler chain and stop handling
 }
 ```
 
