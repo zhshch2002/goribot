@@ -292,8 +292,7 @@ func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Req
 		break
 	}
 
-	req.Header.Set("Content-Type", ct)
-	req.Body = data
+	req.SetHeader("Content-Type", ct).SetBody(data)
 
 	return req, nil
 }

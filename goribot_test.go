@@ -1,7 +1,6 @@
 package goribot
 
 import (
-	"net/http"
 	"testing"
 )
 
@@ -25,11 +24,8 @@ func TestBasic(t *testing.T) {
 func TestCookie(t *testing.T) {
 	s := NewSpider()
 	got := false
-	r := MustNewGetReq("https://httpbin.org/cookies")
-	r.Cookie = append(r.Cookie, &http.Cookie{
-		Name:  "Goribot test",
-		Value: "hello world",
-	})
+	r := MustNewGetReq("https://httpbin.org/cookies").
+		AddCookie("Goribot test", "hello world")
 	s.NewTask(r, func(ctx *Context) {
 		t.Log("got resp data", ctx.Text)
 		if ctx.Json["cookies"].(map[string]interface{})["Goribot test"].(string) != "hello world" {

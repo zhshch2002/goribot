@@ -26,6 +26,29 @@ type Request struct {
 	Proxy  string
 }
 
+func (r *Request) SetHeader(k, v string) *Request {
+	r.Header.Set(k, v)
+	return r
+}
+
+func (r *Request) SetBody(body []byte) *Request {
+	r.Body = body
+	return r
+}
+
+func (r *Request) AddCookie(k, v string) *Request {
+	r.Cookie = append(r.Cookie, &http.Cookie{
+		Name:  k,
+		Value: v,
+	})
+	return r
+}
+
+func (r *Request) WithProxy(proxy string) *Request {
+	r.Proxy = proxy
+	return r
+}
+
 func NewRequest() *Request {
 	return &Request{
 		Url:    &url.URL{},
