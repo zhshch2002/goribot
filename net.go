@@ -17,6 +17,7 @@ const (
 	JsonPostData                           // application/json
 )
 
+// A request struct
 type Request struct {
 	Url    *url.URL
 	Method string
@@ -26,16 +27,19 @@ type Request struct {
 	Proxy  string
 }
 
+// SetHeader set Header of request
 func (r *Request) SetHeader(k, v string) *Request {
 	r.Header.Set(k, v)
 	return r
 }
 
+// SetBody set body data of request
 func (r *Request) SetBody(body []byte) *Request {
 	r.Body = body
 	return r
 }
 
+// AddCookie add a cookie to request
 func (r *Request) AddCookie(k, v string) *Request {
 	r.Cookie = append(r.Cookie, &http.Cookie{
 		Name:  k,
@@ -44,11 +48,13 @@ func (r *Request) AddCookie(k, v string) *Request {
 	return r
 }
 
+// WithProxy set proxy of request
 func (r *Request) WithProxy(proxy string) *Request {
 	r.Proxy = proxy
 	return r
 }
 
+// NewRequest create a new request
 func NewRequest() *Request {
 	return &Request{
 		Url:    &url.URL{},
@@ -60,6 +66,7 @@ func NewRequest() *Request {
 	}
 }
 
+// A response struct
 type Response struct {
 	Url    *url.URL
 	Status int
@@ -74,6 +81,7 @@ type Response struct {
 	Json map[string]interface{}
 }
 
+// Download do a request return response and error
 func Download(r *Request) (*Response, error) {
 	HttpRequest, err := http.NewRequest(r.Method, r.Url.String(), bytes.NewReader(r.Body))
 	if err != nil {
@@ -125,11 +133,13 @@ func Download(r *Request) (*Response, error) {
 	}, nil
 }
 
+// A type of downloader error
 type HttpErr struct {
 	error
 	Request *Request
 }
 
+// MustParseUrl parse url from str,if get error will do panic
 func MustParseUrl(rawurl string) *url.URL {
 	u, err := url.Parse(rawurl)
 	if err != nil {

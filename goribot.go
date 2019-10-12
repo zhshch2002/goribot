@@ -10,8 +10,9 @@ import (
 	"time"
 )
 
-const DefaultUA = "Goribot"
+const DefaultUA = "Goribot" // Default User-Agent of spider
 
+// A wrap of response,origin request,new task,etc
 type Context struct {
 	Text string                 // the response text
 	Html *goquery.Document      // spider will try to parse the response as html
@@ -32,26 +33,29 @@ func (c *Context) Drop() {
 	c.drop = true
 }
 
+// IsDrop return was the context dropped
 func (c *Context) IsDrop() bool {
 	return c.drop
 }
 
-// Add an item to new item list. After every handler func return,spider will collect these items and call OnItem handler func
+// AddItem add an item to new item list. After every handler func return,
+// spider will collect these items and call OnItem handler func
 func (c *Context) AddItem(i interface{}) {
 	c.Items = append(c.Items, i)
 }
 
-// Add a task to new task list. After every handler func return,spider will collect these tasks
+// AddTask add a task to new task list. After every handler func return,spider will collect these tasks
 func (c *Context) AddTask(r *Task) {
 	c.Tasks = append(c.Tasks, r)
 }
 
-// Create a task and add it to new task list After every handler func return,spider will collect these tasks
+// NewTask create a task and add it to new task list After every handler func return,spider will collect these tasks
 func (c *Context) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
 	c.AddTask(NewTask(req, RespHandler...))
 }
 
-// Create a task with meta data and add it to new task list After every handler func return,spider will collect these tasks
+// NewTaskWithMeta create a task with meta data and add it to new task list After every handler func return,
+// spider will collect these tasks
 func (c *Context) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
 	t := NewTask(req, RespHandler...)
 	t.Meta = meta
@@ -59,16 +63,19 @@ func (c *Context) NewTaskWithMeta(req *Request, meta map[string]interface{}, Res
 
 }
 
+// A wrap of request and its handler funcs
 type Task struct {
 	Request        *Request
 	onRespHandlers []func(ctx *Context)
 	Meta           map[string]interface{}
 }
 
+// NewTask create a new task
 func NewTask(req *Request, RespHandler ...func(ctx *Context)) *Task {
 	return &Task{Request: req, onRespHandlers: RespHandler}
 }
 
+// The spider core struct
 type Spider struct {
 	ThreadPoolSize uint64
 	DepthFirst     bool
@@ -83,6 +90,7 @@ type Spider struct {
 	workingThread uint64
 }
 
+// NewSpider create a new spider and run extension func to config the spider
 func NewSpider(exts ...func(s *Spider)) *Spider {
 	s := &Spider{
 		taskQueue:      NewTaskQueue(),
@@ -96,6 +104,7 @@ func NewSpider(exts ...func(s *Spider)) *Spider {
 	return s
 }
 
+// Run the spider and wait to all task done
 func (s *Spider) Run() {
 	worker := func(t *Task) {
 		defer atomic.AddUint64(&s.workingThread, ^uint64(0))
@@ -143,7 +152,7 @@ func (s *Spider) Run() {
 	}
 }
 
-// Add a task to the queue
+// AddTask add a task to the queue
 func (s *Spider) AddTask(ctx *Context, t *Task) {
 	t = s.handleTask(ctx, t)
 	if t == nil {
@@ -161,7 +170,7 @@ func (s *Spider) AddTask(ctx *Context, t *Task) {
 	}
 }
 
-// If a task created by `spider.NewTask` as seed task,the OnTask handler will get TodoContext as ctx param
+// TodoContext -- If a task created by `spider.NewTask` as seed task,the OnTask handler will get TodoContext as ctx param
 var TodoContext = &Context{
 	Text:     "",
 	Html:     &goquery.Document{},
@@ -174,12 +183,12 @@ var TodoContext = &Context{
 	drop:     false,
 }
 
-// Create a task and add it to the queue
+// NewTask create a task and add it to the queue
 func (s *Spider) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
 	s.AddTask(TodoContext, NewTask(req, RespHandler...))
 }
 
-// Create a task with meta data and add it to the queue
+// NewTaskWithMeta create a task with meta data and add it to the queue
 func (s *Spider) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
 	t := NewTask(req, RespHandler...)
 	t.Meta = meta
@@ -219,26 +228,27 @@ func (s *Spider) handleError(ctx *Context, err error) {
 	}
 }
 
-// Add an On Response handler func to the spider
+// OnResp add an On Response handler func to the spider
 func (s *Spider) OnResp(h func(ctx *Context)) {
 	s.onRespHandlers = append(s.onRespHandlers, h)
 }
 
-// Add an On New Task handler func to the spider
+// OnTask add an On New Task handler func to the spider
 func (s *Spider) OnTask(h func(ctx *Context, t *Task) *Task) {
 	s.onTaskHandlers = append(s.onTaskHandlers, h)
 }
 
-// Add an On New Item handler func to the spider. For some storage
+// OnItem add an On New Item handler func to the spider. For some storage
 func (s *Spider) OnItem(h func(ctx *Context, i interface{}) interface{}) {
 	s.onItemHandlers = append(s.onItemHandlers, h)
 }
 
-// Add an On Error handler func to the spider
+// OnError add an On Error handler func to the spider
 func (s *Spider) OnError(h func(ctx *Context, err error)) {
 	s.onErrorHandlers = append(s.onErrorHandlers, h)
 }
 
+// NewGetReq create a new get request
 func NewGetReq(rawurl string) (*Request, error) {
 	req := NewRequest()
 	u, err := url.Parse(rawurl)
@@ -249,6 +259,8 @@ func NewGetReq(rawurl string) (*Request, error) {
 	req.Method = http.MethodGet
 	return req, nil
 }
+
+// NewGetReq create a new get request,if get error will do panic
 func MustNewGetReq(rawurl string) *Request {
 	res, err := NewGetReq(rawurl)
 	if err != nil {
@@ -257,6 +269,7 @@ func MustNewGetReq(rawurl string) *Request {
 	return res
 }
 
+// NewPostReq create a new post request
 func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Request, error) {
 	req := NewRequest()
 	u, err := url.Parse(rawurl)
@@ -297,6 +310,7 @@ func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Req
 	return req, nil
 }
 
+// NewPostReq create a new post request,if get error will do panic
 func MustNewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) *Request {
 	res, err := NewPostReq(rawurl, datatype, rawdata)
 	if err != nil {
