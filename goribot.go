@@ -10,9 +10,10 @@ import (
 	"time"
 )
 
-const DefaultUA = "Goribot" // Default User-Agent of spider
+// Default User-Agent of spider
+const DefaultUA = "Goribot"
 
-// A wrap of response,origin request,new task,etc
+// Context is a wrap of response,origin request,new task,etc
 type Context struct {
 	Text string                 // the response text
 	Html *goquery.Document      // spider will try to parse the response as html
@@ -63,7 +64,7 @@ func (c *Context) NewTaskWithMeta(req *Request, meta map[string]interface{}, Res
 
 }
 
-// A wrap of request and its handler funcs
+// Task is a wrap of request and its handler funcs
 type Task struct {
 	Request        *Request
 	onRespHandlers []func(ctx *Context)
@@ -75,7 +76,7 @@ func NewTask(req *Request, RespHandler ...func(ctx *Context)) *Task {
 	return &Task{Request: req, onRespHandlers: RespHandler}
 }
 
-// The spider core struct
+// Spider is the core spider struct
 type Spider struct {
 	ThreadPoolSize uint64
 	DepthFirst     bool
@@ -260,7 +261,7 @@ func NewGetReq(rawurl string) (*Request, error) {
 	return req, nil
 }
 
-// NewGetReq create a new get request,if get error will do panic
+// MustNewGetReq  create a new get request,if get error will do panic
 func MustNewGetReq(rawurl string) *Request {
 	res, err := NewGetReq(rawurl)
 	if err != nil {
@@ -310,7 +311,7 @@ func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Req
 	return req, nil
 }
 
-// NewPostReq create a new post request,if get error will do panic
+// MustNewPostReq create a new post request,if get error will do panic
 func MustNewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) *Request {
 	res, err := NewPostReq(rawurl, datatype, rawdata)
 	if err != nil {

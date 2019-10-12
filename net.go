@@ -9,15 +9,19 @@ import (
 	"net/url"
 )
 
+// PostDataType is the type of Content-Type
 type PostDataType int
 
 const (
-	TextPostData       PostDataType = iota // text/plain
-	UrlencodedPostData                     // application/x-www-form-urlencoded
-	JsonPostData                           // application/json
+	// text/plain
+	TextPostData PostDataType = iota
+	// application/x-www-form-urlencoded
+	UrlencodedPostData
+	// application/json
+	JsonPostData
 )
 
-// A request struct
+// Request  is request struct
 type Request struct {
 	Url    *url.URL
 	Method string
@@ -66,7 +70,7 @@ func NewRequest() *Request {
 	}
 }
 
-// A response struct
+// Response  is response struct
 type Response struct {
 	Url    *url.URL
 	Status int
@@ -133,7 +137,7 @@ func Download(r *Request) (*Response, error) {
 	}, nil
 }
 
-// A type of downloader error
+// HttpErr is type of downloader error
 type HttpErr struct {
 	error
 	Request *Request

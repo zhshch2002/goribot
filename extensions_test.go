@@ -130,7 +130,7 @@ func TestMaxReqLimiter(t *testing.T) {
 func TestUrlFiller(t *testing.T) {
 	got := false
 	s := NewSpider(
-		UrlFiller(`https://httpbin.org(.*?)`),
+		UrlFilter(`https://httpbin.org(.*?)`),
 	)
 	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
 		got = true

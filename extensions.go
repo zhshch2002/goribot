@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// RandomUserAgent is an extension can set random User-Agent for new task
 func RandomUserAgent() func(s *Spider) {
 	var RandSrc int64 = 0
 	return func(s *Spider) {
@@ -29,6 +30,7 @@ func RandomUserAgent() func(s *Spider) {
 	}
 }
 
+// HostFilter is an extension can filter new task by host
 func HostFilter(h ...string) func(s *Spider) {
 	WhiteList := map[string]struct{}{}
 	for _, i := range h {
@@ -44,6 +46,7 @@ func HostFilter(h ...string) func(s *Spider) {
 	}
 }
 
+// RobotsTxt is an extension can parse the robots.txt and follow it
 func RobotsTxt(baseUrl, ua string) func(s *Spider) {
 	if !strings.HasSuffix(baseUrl, "/") {
 		baseUrl += "/"
@@ -67,6 +70,7 @@ func RobotsTxt(baseUrl, ua string) func(s *Spider) {
 
 }
 
+// ReqDeduplicate is an extension can deduplicate new task
 func ReqDeduplicate() func(s *Spider) {
 	CrawledHash := map[[md5.Size]byte]struct{}{}
 	lock := sync.Mutex{}
@@ -87,6 +91,7 @@ func ReqDeduplicate() func(s *Spider) {
 	}
 }
 
+// RefererFiller is an extension can add Referer for new task
 func RefererFiller() func(s *Spider) {
 	return func(s *Spider) {
 		s.OnTask(func(ctx *Context, k *Task) *Task {
@@ -98,6 +103,7 @@ func RefererFiller() func(s *Spider) {
 	}
 }
 
+// MaxReqLimiter is an extension can limit the number of new task
 func MaxReqLimiter(m uint64) func(s *Spider) {
 	var count uint64 = 0
 	return func(s *Spider) {
@@ -111,7 +117,8 @@ func MaxReqLimiter(m uint64) func(s *Spider) {
 	}
 }
 
-func UrlFiller(str string) func(s *Spider) {
+// UrlFilter is an extension can filter the new task's url by regexp
+func UrlFilter(str string) func(s *Spider) {
 	reg := regexp.MustCompile(str)
 	return func(s *Spider) {
 		s.OnTask(func(ctx *Context, k *Task) *Task {

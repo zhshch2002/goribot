@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// GetRequestHash return a hash of url,header,cookie and body data from a request
 func GetRequestHash(r *Request) [md5.Size]byte {
 	u := r.Url
 	UrtStr := u.Scheme + "://"
