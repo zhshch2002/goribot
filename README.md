@@ -13,8 +13,8 @@ A golang spider framework.
 # Features
 * Clean API
 * Pipeline-style handle logic
-* Robots.txt support (ues `RobotsTxt` extensions)
-* Request Deduplicate (ues `ReqDeduplicate` extensions)
+* Robots.txt support (use `RobotsTxt` extensions)
+* Request Deduplicate (use `ReqDeduplicate` extensions)
 * Extensions
 
 # Example
@@ -45,7 +45,7 @@ func main() {
 go get -u github.com/zhshch2002/goribot
 ```
 
-## basic ues
+## basic use
 ### create spider
 ```go
 s := goribot.NewSpider()
@@ -131,7 +131,7 @@ Tip:It is different between `s.NewTaskWithMeta` and `ctx.NewTaskWithMeta`,when y
 ### Run it！
 Call the `s.Run()` to run the spider.
 
-## ues the hook func and make extensions
+## use the hook func and make extensions
 wait to write.
 
 # Another Example
@@ -196,20 +196,6 @@ func main() {
     s.Run()
 }
 ```
-
-# TODO
-* 制作更多的内建插件`extensions`
-    * [x] 随机UA
-    * [x] 自动添加Referer
-    * [x] Robots.txt解析
-    * [x] 最大请求数限制
-    * [x] Host过滤
-    * [x] URL过滤
-    * [ ] 随机代理
-    * [x] 去重复
-* `Spider`主体功能
-    * [ ] 随机延时
-    * [ ] 分布式调度
 
 ## License
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fzhshch2002%2Fgoribot?ref=badge_large)
