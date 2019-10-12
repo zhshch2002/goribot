@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Default User-Agent of spider
+// DefaultUA is the default User-Agent of spider
 const DefaultUA = "Goribot"
 
 // Context is a wrap of response,origin request,new task,etc

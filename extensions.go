@@ -15,7 +15,7 @@ import (
 
 // RandomUserAgent is an extension can set random User-Agent for new task
 func RandomUserAgent() func(s *Spider) {
-	var RandSrc int64 = 0
+	var RandSrc int64
 	return func(s *Spider) {
 		s.OnTask(func(ctx *Context, k *Task) *Task {
 			if k.Request.Header.Get("User-Agent") == "" {
@@ -105,7 +105,7 @@ func RefererFiller() func(s *Spider) {
 
 // MaxReqLimiter is an extension can limit the number of new task
 func MaxReqLimiter(m uint64) func(s *Spider) {
-	var count uint64 = 0
+	var count uint64
 	return func(s *Spider) {
 		s.OnTask(func(ctx *Context, k *Task) *Task {
 			if atomic.LoadUint64(&count) >= m {

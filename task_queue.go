@@ -22,7 +22,7 @@ func (s *TaskQueue) Push(item *Task) {
 	s.Unlock()
 }
 
-// Push a task to the queue head
+// PushInHead push a task to the queue head
 func (s *TaskQueue) PushInHead(item *Task) {
 	s.Lock()
 	s.items = append([]*Task{item}, s.items...)

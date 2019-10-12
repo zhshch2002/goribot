@@ -13,11 +13,11 @@ import (
 type PostDataType int
 
 const (
-	// text/plain
+	// TextPostData  text/plain
 	TextPostData PostDataType = iota
-	// application/x-www-form-urlencoded
+	// UrlencodedPostData  application/x-www-form-urlencoded
 	UrlencodedPostData
-	// application/json
+	// JsonPostData  application/json
 	JsonPostData
 )
 
