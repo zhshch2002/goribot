@@ -131,7 +131,7 @@ func TestOnHandlers(t *testing.T) {
 		resp = true
 	})
 	s.OnTask(func(ctx *Context, k *Task) *Task {
-		t.Log("on task", t)
+		t.Log("on task", k)
 		task = true
 		return k
 	})
