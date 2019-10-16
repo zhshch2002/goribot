@@ -12,10 +12,11 @@ A golang spider framework.
 
 # Features
 * Clean API
+* Caching
+* Extensions
 * Pipeline-style handle logic
 * Robots.txt support (use `RobotsTxt` extensions)
 * Request Deduplicate (use `ReqDeduplicate` extensions)
-* Extensions
 
 # Example
 a basic example：

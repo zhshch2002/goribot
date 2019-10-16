@@ -10,10 +10,11 @@ A golang spider framework.
 
 # Features
 * Clean API
-* Pipeline-style handle logic
-* Robots.txt support (ues `RobotsTxt` extensions)
-* Request Deduplicate (ues `ReqDeduplicate` extensions)
+* Caching
 * Extensions
+* Pipeline-style handle logic
+* Robots.txt support (use `RobotsTxt` extensions)
+* Request Deduplicate (use `ReqDeduplicate` extensions)
 
 # Example
 一个简单的实例：
@@ -205,9 +206,10 @@ func main() {
     * [x] 最大请求数限制
     * [x] Host过滤
     * [x] URL过滤
-    * [ ] 随机代理
     * [x] 去重复
+    * [ ] 随机代理
 * `Spider`主体功能
+    * [x] Caching
     * [ ] 随机延时
     * [ ] 分布式调度
 

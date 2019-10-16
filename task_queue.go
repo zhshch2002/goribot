@@ -2,6 +2,18 @@ package goribot
 
 import "sync"
 
+// Task is a wrap of request and its handler funcs
+type Task struct {
+	Request        *Request
+	onRespHandlers []func(ctx *Context)
+	Meta           map[string]interface{}
+}
+
+// NewTask create a new task
+func NewTask(req *Request, RespHandler ...func(ctx *Context)) *Task {
+	return &Task{Request: req, onRespHandlers: RespHandler}
+}
+
 // TaskQueue is a queue of task
 type TaskQueue struct {
 	sync.Mutex

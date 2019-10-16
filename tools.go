@@ -2,10 +2,83 @@ package goribot
 
 import (
 	"crypto/md5"
+	"encoding/json"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 )
+
+// NewGetReq create a new get request
+func NewGetReq(rawurl string) (*Request, error) {
+	req := NewRequest()
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	req.Url = u
+	req.Method = http.MethodGet
+	return req, nil
+}
+
+// MustNewGetReq  create a new get request,if get error will do panic
+func MustNewGetReq(rawurl string) *Request {
+	res, err := NewGetReq(rawurl)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+// NewPostReq create a new post request
+func NewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) (*Request, error) {
+	req := NewRequest()
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	req.Url = u
+	req.Method = http.MethodPost
+
+	var data []byte
+	ct := ""
+	switch datatype {
+	case TextPostData:
+		ct = "text/plain"
+		data = []byte(rawdata.(string))
+		break
+	case UrlencodedPostData:
+		ct = "application/x-www-form-urlencoded"
+		var urlS url.URL
+		q := urlS.Query()
+		for k, v := range rawdata.(map[string]string) {
+			q.Add(k, v)
+		}
+		data = []byte(q.Encode())
+		break
+	case JsonPostData:
+		ct = "application/json"
+		tdata, err := json.Marshal(rawdata)
+		if err != nil {
+			return nil, err
+		}
+		data = tdata
+		break
+	}
+
+	req.SetHeader("Content-Type", ct).SetBody(data)
+
+	return req, nil
+}
+
+// MustNewPostReq create a new post request,if get error will do panic
+func MustNewPostReq(rawurl string, datatype PostDataType, rawdata interface{}) *Request {
+	res, err := NewPostReq(rawurl, datatype, rawdata)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
 
 // GetRequestHash return a hash of url,header,cookie and body data from a request
 func GetRequestHash(r *Request) [md5.Size]byte {
