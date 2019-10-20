@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // PostDataType is the type of Content-Type
@@ -85,6 +86,11 @@ type Response struct {
 	Json map[string]interface{}
 }
 
+// DefaultClient is the default Client and is used by Get, Head, and Post.
+var DefaultClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
 // Download do a request return response and error
 func Download(r *Request) (*Response, error) {
 	HttpRequest, err := http.NewRequest(r.Method, r.Url.String(), bytes.NewReader(r.Body))
@@ -99,8 +105,11 @@ func Download(r *Request) (*Response, error) {
 		HttpRequest.AddCookie(i)
 	}
 
-	c := &http.Client{}
+	var c *http.Client
 	if r.Proxy != "" {
+		c = &http.Client{
+			Timeout: 10 * time.Second,
+		}
 		p, err := url.Parse(r.Proxy)
 		if err != nil {
 			return nil, err
@@ -108,6 +117,8 @@ func Download(r *Request) (*Response, error) {
 		c.Transport = &http.Transport{
 			Proxy: http.ProxyURL(p),
 		}
+	} else {
+		c = DefaultClient
 	}
 
 	resp, err := c.Do(HttpRequest)
