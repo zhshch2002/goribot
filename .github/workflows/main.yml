@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  test 1.13:
+  test13:
     name: Test 1.13
     runs-on: ubuntu-latest
     steps:
@@ -28,7 +28,7 @@ jobs:
           token: ${{secrets.CODECOV_TOKEN}}
           file: ./coverage.txt
 
-  test 1.12:
+  test12:
     name: Test 1.12
     runs-on: ubuntu-latest
     steps:
@@ -49,7 +49,7 @@ jobs:
           token: ${{secrets.CODECOV_TOKEN}}
           file: ./coverage.txt
 
-  test 1.11:
+  test11:
     name: Test 1.11
     runs-on: ubuntu-latest
     steps:
