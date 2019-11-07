@@ -99,7 +99,7 @@ func Download(r *Request) (*Response, error) {
 	}
 
 	if r.Header != nil {
-		HttpRequest.Header = r.Header.Clone()
+		HttpRequest.Header = r.Header
 	}
 	for _, i := range r.Cookie {
 		HttpRequest.AddCookie(i)
