@@ -7,14 +7,56 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: Test
+  test 1.13:
+    name: Test 1.13
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
           go-version: 1.13
+
+      - name: Check out code
+        uses: actions/checkout@v1
+
+      - name: Run Unit tests.
+        run: go test -short -coverprofile coverage.txt
+
+      - name: Upload Coverage report to CodeCov
+        uses: codecov/codecov-action@v1.0.0
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+          file: ./coverage.txt
+
+  test 1.12:
+    name: Test 1.12
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.12
+
+      - name: Check out code
+        uses: actions/checkout@v1
+
+      - name: Run Unit tests.
+        run: go test -short -coverprofile coverage.txt
+
+      - name: Upload Coverage report to CodeCov
+        uses: codecov/codecov-action@v1.0.0
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+          file: ./coverage.txt
+
+  test 1.11:
+    name: Test 1.11
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.11
 
       - name: Check out code
         uses: actions/checkout@v1
