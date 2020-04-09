@@ -2,24 +2,89 @@ package goribot
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
 func TestNet(t *testing.T) {
-	req := &Request{
-		Url:    MustParseUrl("https://httpbin.org/get?Goribot%20test=hello%20world"),
-		Method: http.MethodGet,
-		Cookie: nil,
-		Header: nil,
-		Body:   nil,
-		Proxy:  "",
-	}
-	resp, err := Download(req)
+	d := NewBaseDownloader()
+
+	resp, err := d.Do(
+		GetReq("https://httpbin.org/get").
+			SetParam(map[string]string{
+				"Goribot": "hello world",
+			}).
+			SetHeader("Goribot", "hello world").
+			SetUA("Goribot").
+			AddCookie(&http.Cookie{
+				Name:  "Goribot",
+				Value: "hello world",
+			}),
+	)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log("got resp data", resp.Text)
-	if resp.Json["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
+	if resp.Json("args.Goribot").String() != "hello world" {
+		t.Error("wrong resp data: " + resp.Json("args.Goribot").String())
+	}
+	if resp.Json("headers.Goribot").String() != "hello world" {
+		t.Error("wrong resp data: " + resp.Json("headers.Goribot").String())
+	}
+	if resp.Json("headers.Cookie").String() != `Goribot="hello world"` {
+		t.Error("wrong resp data: " + resp.Json("headers.Cookie").String())
+	}
+}
+
+func TestPost(t *testing.T) {
+	d := NewBaseDownloader()
+
+	resp, err := d.Do(
+		PostRawReq("https://httpbin.org/post", []byte("hello world")),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log("got resp data", resp.Text)
+	if resp.Json("data").String() != "hello world" {
+		t.Error("wrong resp data: " + resp.Json("data").String())
+	}
+
+	resp, err = d.Do(
+		PostFormReq("https://httpbin.org/post", map[string]string{
+			"Goribot": "hello world",
+		}),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log("got resp data", resp.Text)
+	if resp.Json("form.Goribot").String() != "hello world" {
+		t.Error("wrong resp data: " + resp.Json("form.Goribot").String())
+	}
+
+	resp, err = d.Do(
+		PostJsonReq("https://httpbin.org/post", map[string]interface{}{
+			"Goribot": "hello world",
+		}),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log("got resp data", resp.Text)
+	if resp.Json("json.Goribot").String() != "hello world" {
+		t.Error("wrong resp data: " + resp.Json("json.Goribot").String())
+	}
+}
+
+func TestNetDecode(t *testing.T) {
+	d := NewBaseDownloader()
+	resp, err := d.Do(GetReq("http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2017/45/14/25/451425202.html"))
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log("got resp data", resp.Text)
+	if !strings.Contains(resp.Text, "统计用区划代码") {
 		t.Error("wrong resp data")
 	}
 }

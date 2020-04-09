@@ -1,65 +1,34 @@
 package goribot
 
 import (
-	"net/http"
 	"testing"
 )
 
-func TestRandomUserAgent(t *testing.T) {
+func TestRefererFiller(t *testing.T) {
 	s := NewSpider(
-		RandomUserAgent(),
+		RefererFiller(),
 	)
-	got := false
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Log("got resp data", ctx.Text)
-		if ctx.Json["headers"].(map[string]interface{})["User-Agent"].(string) == DefaultUA {
-			t.Error("wrong ua setting")
-		} else {
-			got = true
-		}
-	})
+	got1 := false
+	got2 := false
+	s.Add(NewTask(
+		GetReq("https://httpbin.org/"),
+		func(ctx *Context) {
+			got1 = true
+			t.Log("got first")
+			ctx.AddTask(NewTask(
+				GetReq("https://httpbin.org/get").SetHeader("123", "ABC"),
+				func(ctx *Context) {
+					t.Log("got second")
+					got2 = true
+					if ctx.Resp.Json("headers.Referer").String() != "https://httpbin.org/" {
+						t.Error("wrong Referer", ctx.Resp.Json("headers.Referer").String())
+					}
+				},
+			))
+		},
+	))
 	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestHostFilter(t *testing.T) {
-	s := NewSpider(
-		HostFilter("www.baidu.com"),
-	)
-	got := false
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Error("got wrong resp")
-	})
-	s.NewTask(MustNewGetReq("https://www.baidu.com/"), func(ctx *Context) {
-		t.Log("got resp data", ctx.Text)
-		got = true
-	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestRobotsTxt(t *testing.T) {
-	s := NewSpider(
-		RobotsTxt("https://github.com/", "Goribot"),
-	)
-	s.NewTask(MustNewGetReq("https://github.com/zhshch2002"), func(ctx *Context) { // unable to access according to https://github.com/robots.txt
-		t.Error("RobotsTxt error")
-	})
-	s.Run()
-
-	s = NewSpider(
-		RobotsTxt("https://github.com/", "Googlebot"),
-	)
-	got := false
-	s.NewTask(MustNewGetReq("https://github.com/zhshch2002/goribot/wiki"), func(ctx *Context) {
-		got = true
-	})
-	s.Run()
-	if !got {
+	if !got1 || !got2 {
 		t.Error("didn't get data")
 	}
 }
@@ -69,76 +38,48 @@ func TestReqDeduplicate(t *testing.T) {
 	s := NewSpider(
 		ReqDeduplicate(),
 	)
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		got1 = true
-		t.Log("got first")
-		r := MustNewGetReq("https://httpbin.org/get?a=1")
-		r.Cookie = append(r.Cookie, &http.Cookie{
-			Name:  "123",
-			Value: "123",
-		})
-		r.Header.Set("hello", "world")
-		ctx.NewTask(r, func(ctx *Context) {
-			t.Log("got second")
-			got2 = true
-		})
-	})
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Error("Deduplicate error")
-	})
+	s.Add(NewTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			got1 = true
+			t.Log("got first")
+			ctx.AddTask(NewTask(
+				GetReq("https://httpbin.org/get").SetHeader("123", "ABC"),
+				func(ctx *Context) {
+					t.Log("got second")
+					got2 = true
+				},
+			))
+		},
+	))
+	s.Add(NewTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			t.Error("Deduplicate error")
+		},
+	))
 	s.Run()
 	if (!got1) || (!got2) {
 		t.Error("didn't get data")
 	}
 }
 
-func TestRefererFiller(t *testing.T) {
-	s := NewSpider(RefererFiller())
+func TestRandomUserAgent(t *testing.T) {
+	s := NewSpider(
+		RandomUserAgent(),
+	)
 	got := false
-	s.NewTask(MustNewGetReq("https://httpbin.org/"), func(ctx *Context) {
-		ctx.NewTask(MustNewGetReq("https://httpbin.org/post"), func(ctx *Context) {
-			got = true
-			if ctx.Request.Header.Get("Referer") != "https://httpbin.org/" {
-				t.Error("Referer error")
+	s.Add(NewTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			t.Log("got resp data", ctx.Resp.Text)
+			if ctx.Resp.Json("headers.User-Agent").String() == "Go-http-client/2.0" {
+				t.Error("wrong ua setting")
+			} else {
+				got = true
 			}
-		})
-	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestMaxReqLimiter(t *testing.T) {
-	got := false
-	s := NewSpider(
-		MaxReqLimiter(1),
-	)
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		got = true
-		t.Log("got first")
-	})
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Error("Limiter error")
-	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestUrlFiller(t *testing.T) {
-	got := false
-	s := NewSpider(
-		UrlFilter(`https://httpbin.org(.*?)`),
-	)
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		got = true
-		t.Log("got first")
-	})
-	s.NewTask(MustNewGetReq("https://www.baidu.com"), func(ctx *Context) {
-		t.Error("Filler error")
-	})
+		},
+	))
 	s.Run()
 	if !got {
 		t.Error("didn't get data")

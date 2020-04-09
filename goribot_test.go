@@ -1,248 +1,62 @@
 package goribot
 
 import (
+	"fmt"
 	"testing"
 )
 
 func TestBasic(t *testing.T) {
 	s := NewSpider()
-	got := false
-	s.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
-		t.Log("got resp data", ctx.Text)
-		if ctx.Json["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-			t.Error("wrong resp data")
-		} else {
-			got = true
-		}
+	r := 0
+	s.OnStart(func(s *Spider) {
+		t.Log("OnStart")
+		r += 1
 	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestCookie(t *testing.T) {
-	s := NewSpider()
-	got := false
-	r := MustNewGetReq("https://httpbin.org/cookies").
-		AddCookie("Goribot test", "hello world")
-	s.NewTask(r, func(ctx *Context) {
-		t.Log("got resp data", ctx.Text)
-		if ctx.Json["cookies"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-			t.Error("wrong resp data")
-		} else {
-			got = true
-		}
+	s.OnAdd(func(ctx *Context, ta *Task) *Task {
+		t.Log("OnAdd")
+		r += 1
+		return ta
 	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestUrlencodedPost(t *testing.T) {
-	s := NewSpider()
-	got := false
-	s.NewTask(MustNewPostReq(
-		"https://httpbin.org/post",
-		UrlencodedPostData,
-		map[string]string{
+	s.OnReq(func(ctx *Context, req *Request) *Request {
+		t.Log("OnReq")
+		r += 1
+		return req
+	})
+	s.Add(NewTask(
+		GetReq("https://httpbin.org/get?Goribot%20test=hello%20world").SetParam(map[string]string{
 			"Goribot test": "hello world",
-		}),
+		}).WithMeta("test", "hello world"),
 		func(ctx *Context) {
-			t.Log("got resp data", ctx.Text)
-			if ctx.Json["form"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-				t.Error("wrong resp data")
-			} else {
-				got = true
+			if ctx.Meta["test"] != "hello world" {
+				t.Error("wrong meta data")
 			}
-		})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestJsonPost(t *testing.T) {
-	s := NewSpider()
-	got := false
-	s.NewTask(MustNewPostReq(
-		"https://httpbin.org/post", JsonPostData, map[string]string{
-			"Goribot test": "hello world",
-		}),
+			r += 1
+			t.Log("got resp data", ctx.Resp.Text)
+			if ctx.Resp.Json("args.Goribot test").String() != "hello world" {
+				t.Error("wrong resp data: " + ctx.Resp.Json("args.Goribot test").String() + " " + ctx.Resp.Text)
+			}
+			ctx.AddItem(struct{}{})
+		},
 		func(ctx *Context) {
-			t.Log("got resp data", ctx.Text)
-			if ctx.Json["json"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-				t.Error("wrong resp data")
-			} else {
-				got = true
-			}
-		})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestTextPost(t *testing.T) {
-	s := NewSpider()
-	got := false
-	s.NewTask(MustNewPostReq(
-		"https://httpbin.org/post", TextPostData, "hello world"),
-		func(ctx *Context) {
-			t.Log("got resp data", ctx.Text)
-			if ctx.Json["data"].(string) != "hello world" {
-				t.Error("wrong resp data")
-			} else {
-				got = true
-			}
-		})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestCtxNewReq(t *testing.T) {
-	s := NewSpider()
-	got := false
-	s.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
-		ctx.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
-			t.Log("got resp data", ctx.Text)
-			if ctx.Json["args"].(map[string]interface{})["Goribot test"].(string) != "hello world" {
-				t.Error("wrong resp data")
-			} else {
-				got = true
-			}
-		})
-	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestOnHandlers(t *testing.T) {
-	s := NewSpider()
-	resp, task, item, onerr := false, false, false, false
-	got := false
-	s.OnResp(func(ctx *Context) {
-		t.Log("on resp")
-		resp = true
-	})
-	s.OnTask(func(ctx *Context, k *Task) *Task {
-		t.Log("on task", k)
-		task = true
-		return k
-	})
-	s.OnItem(func(ctx *Context, i interface{}) interface{} {
-		t.Log("on item", i)
-		item = true
+			t.Log("Handler 2")
+			panic("some test error")
+		},
+	))
+	s.OnItem(func(i interface{}) interface{} {
+		t.Log("OnItem")
+		r += 1
 		return i
 	})
 	s.OnError(func(ctx *Context, err error) {
-		t.Log("on error", err)
-		onerr = true
+		t.Log(err)
+		r += 1
 	})
-	s.NewTask(MustNewGetReq("https://httpbin.org/get?Goribot%20test=hello%20world"), func(ctx *Context) {
-		got = true
-		ctx.AddItem(1)
-	})
-	s.NewTask(MustNewGetReq("/"), func(ctx *Context) {})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-	if (!resp) || (!task) || (!item) || (!onerr) {
-		t.Error("handlers func wrong")
-	}
-}
-
-func TestBFS(t *testing.T) {
-	s := NewSpider()
-	s.ThreadPoolSize = 1
-	s.DepthFirst = false
-	got := false
-
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Log("got No.1")
-		if got {
-			t.Error("wrong request order")
-		}
-		got = true
-	})
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Log("got No.2")
-		got = true
+	s.OnFinish(func(s *Spider) {
+		t.Log("OnFinish")
+		r += 1
 	})
 	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestDFS(t *testing.T) {
-	s := NewSpider()
-	s.ThreadPoolSize = 1
-	s.DepthFirst = true
-	got := false
-
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		got = true
-	})
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Log("got No.1")
-		if got {
-			t.Error("wrong request order")
-		}
-		t.Log("got No.2")
-		got = true
-	})
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
-	}
-}
-
-func TestCtxDrop(t *testing.T) {
-	s := NewSpider()
-
-	s.OnResp(func(ctx *Context) {
-		ctx.Drop()
-	})
-
-	s.NewTask(MustNewGetReq("https://httpbin.org/get"), func(ctx *Context) {
-		t.Error("drop error")
-	})
-
-	s.Run()
-}
-
-func TestTaskWithMeta(t *testing.T) {
-	s := NewSpider()
-
-	s.OnResp(func(ctx *Context) {
-		if d, ok := ctx.Meta["test"]; !ok {
-			t.Error("can't find meta")
-		} else {
-			t.Log("Meta 'test' data", d)
-		}
-
-	})
-
-	got := false
-	s.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface{}{
-		"test": 1,
-	}, func(ctx *Context) {
-		ctx.NewTaskWithMeta(MustNewGetReq("https://httpbin.org/get"), map[string]interface{}{
-			"test": 2,
-		}, func(ctx *Context) {
-			got = true
-		})
-	})
-
-	s.Run()
-	if !got {
-		t.Error("didn't get data")
+	if r != 7 {
+		t.Error("handlers miss " + fmt.Sprint(r))
 	}
 }

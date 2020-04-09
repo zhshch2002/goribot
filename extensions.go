@@ -2,72 +2,23 @@ package goribot
 
 import (
 	"crypto/md5"
-	"github.com/slyrz/robots"
-	"log"
 	"math/rand"
-	"net/http"
-	"regexp"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// RandomUserAgent is an extension can set random User-Agent for new task
-func RandomUserAgent() func(s *Spider) {
-	var RandSrc int64
+// TODO 限制请求速率
+
+// RefererFiller is an extension can add Referer for new task
+func RefererFiller() func(s *Spider) {
 	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, k *Task) *Task {
-			if k.Request.Header.Get("User-Agent") == "" {
-				RandSrc += 1
-				rs := rand.NewSource(time.Now().Unix() + RandSrc)
-				ra := rand.New(rs)
-				RandSrc = ra.Int63()
-				k.Request.Header.Set("User-Agent", uaList[ra.Intn(len(uaList))])
+		s.OnAdd(func(ctx *Context, t *Task) *Task {
+			if ctx != nil {
+				t.Request.Header.Set("Referer", ctx.Resp.HttpResponse.Request.URL.String())
 			}
-			return k
+			return t
 		})
 	}
-}
-
-// HostFilter is an extension can filter new task by host
-func HostFilter(h ...string) func(s *Spider) {
-	WhiteList := map[string]struct{}{}
-	for _, i := range h {
-		WhiteList[i] = struct{}{}
-	}
-	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, k *Task) *Task {
-			if _, ok := WhiteList[k.Request.Url.Host]; ok {
-				return k
-			}
-			return nil
-		})
-	}
-}
-
-// RobotsTxt is an extension can parse the robots.txt and follow it
-func RobotsTxt(baseUrl, ua string) func(s *Spider) {
-	if !strings.HasSuffix(baseUrl, "/") {
-		baseUrl += "/"
-	}
-	resp, err := http.Get(baseUrl + "robots.txt")
-	if err != nil {
-		log.Println("get robots.txt error", err)
-		return func(s *Spider) {}
-	}
-	defer resp.Body.Close()
-
-	RobotsTxt := robots.New(resp.Body, ua)
-	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, t *Task) *Task {
-			if RobotsTxt.Allow(t.Request.Url.Path) {
-				return t
-			}
-			return nil
-		})
-	}
-
 }
 
 // ReqDeduplicate is an extension can deduplicate new task
@@ -75,7 +26,7 @@ func ReqDeduplicate() func(s *Spider) {
 	CrawledHash := map[[md5.Size]byte]struct{}{}
 	lock := sync.Mutex{}
 	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, t *Task) *Task {
+		s.OnAdd(func(ctx *Context, t *Task) *Task {
 			has := GetRequestHash(t.Request)
 
 			lock.Lock()
@@ -91,41 +42,20 @@ func ReqDeduplicate() func(s *Spider) {
 	}
 }
 
-// RefererFiller is an extension can add Referer for new task
-func RefererFiller() func(s *Spider) {
+// RandomUserAgent is an extension can set random User-Agent for new task
+func RandomUserAgent() func(s *Spider) {
+	var RandSrc int64
 	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, k *Task) *Task {
-			if ctx != TodoContext {
-				k.Request.Header.Set("Referer", ctx.Response.Request.Url.String())
+		s.OnReq(func(ctx *Context, req *Request) *Request {
+			if req.Request.Header.Get("User-Agent") == "" {
+				RandSrc += 1
+				rs := rand.NewSource(time.Now().Unix() + RandSrc)
+				ra := rand.New(rs)
+				RandSrc = ra.Int63()
+				req.Request.Header.Set("User-Agent", uaList[ra.Intn(len(uaList))])
+				req.Meta["RandomUserAgent"] = struct{}{}
 			}
-			return k
-		})
-	}
-}
-
-// MaxReqLimiter is an extension can limit the number of new task
-func MaxReqLimiter(m uint64) func(s *Spider) {
-	var count uint64
-	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, k *Task) *Task {
-			if atomic.LoadUint64(&count) >= m {
-				return nil
-			}
-			atomic.AddUint64(&count, 1)
-			return k
-		})
-	}
-}
-
-// UrlFilter is an extension can filter the new task's url by regexp
-func UrlFilter(str string) func(s *Spider) {
-	reg := regexp.MustCompile(str)
-	return func(s *Spider) {
-		s.OnTask(func(ctx *Context, k *Task) *Task {
-			if !reg.MatchString(k.Request.Url.String()) {
-				return nil
-			}
-			return k
+			return req
 		})
 	}
 }

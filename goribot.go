@@ -1,187 +1,245 @@
 package goribot
 
 import (
-	"github.com/PuerkitoBio/goquery"
-	"log"
-	"sync/atomic"
-	"time"
+	"errors"
+	"fmt"
+	"github.com/panjf2000/ants/v2"
+	"runtime"
 )
 
-// DefaultUA is the default User-Agent of spider
-const DefaultUA = "Goribot"
+var ErrRunFinishedSpider = errors.New("running a spider which is finished,you could recreate this spider and run the new one")
 
-// Spider is the core spider struct
-type Spider struct {
-	ThreadPoolSize uint64
-	DepthFirst     bool
-	Downloader     func(r *Request) (*Response, error)
-
-	Cache *CacheManger
-
-	onRespHandlers  []func(ctx *Context)
-	onTaskHandlers  []func(ctx *Context, req *Task) *Task
-	onItemHandlers  []func(ctx *Context, i interface{}) interface{}
-	onErrorHandlers []func(ctx *Context, err error)
-
-	taskQueue     *TaskQueue
-	workingThread uint64
+type Task struct {
+	Request  *Request
+	Handlers []func(ctx *Context)
+	Meta     map[string]interface{}
 }
 
-// NewSpider create a new spider and run extension func to config the spider
+func NewTask(request *Request, handlers ...func(ctx *Context)) *Task {
+	return &Task{Request: request, Handlers: handlers, Meta: request.Meta}
+}
+func NewTaskWithMeta(request *Request, meta map[string]interface{}, handlers ...func(ctx *Context)) *Task {
+	return &Task{Request: request, Handlers: handlers, Meta: meta}
+}
+
+type Spider struct {
+	Scheduler                         Scheduler
+	Downloader                        Downloader
+	taskPool, itemPool                *ants.Pool
+	onStartHandlers, onFinishHandlers []func(s *Spider)
+	onReqHandlers                     []func(ctx *Context, req *Request) *Request
+	onAddHandlers                     []func(ctx *Context, req *Task) *Task
+	onRespHandlers                    []func(ctx *Context)
+	onItemHandlers                    []func(i interface{}) interface{}
+	onErrorHandlers                   []func(ctx *Context, err error)
+}
+
 func NewSpider(exts ...func(s *Spider)) *Spider {
+	tp, err := ants.NewPool(runtime.NumCPU() * 2)
+	if err != nil {
+		panic(err)
+	}
+	ip, err := ants.NewPool(runtime.NumCPU())
+	if err != nil {
+		panic(err)
+	}
 	s := &Spider{
-		taskQueue:      NewTaskQueue(),
-		Cache:          NewCacheManger(),
-		Downloader:     Download,
-		DepthFirst:     true,
-		ThreadPoolSize: 30,
+		Scheduler:  NewBaseScheduler(false),
+		Downloader: NewBaseDownloader(),
+		taskPool:   tp,
+		itemPool:   ip,
 	}
-	for _, e := range exts {
-		e(s)
-	}
+	s.Use(exts...)
 	return s
 }
 
-// Run the spider and wait to all task done
-func (s *Spider) Run() {
-	worker := func(t *Task) {
-		defer atomic.AddUint64(&s.workingThread, ^uint64(0))
+func (s *Spider) SetTaskPoolSize(i int) {
+	s.taskPool.Tune(i)
+}
 
-		resp, err := s.Downloader(t.Request)
-		ctx := &Context{
-			Request:  t.Request,
-			Response: resp,
-			Items:    []interface{}{},
-			Meta:     t.Meta,
-			drop:     false,
+func (s *Spider) SetItemPoolSize(i int) {
+	s.itemPool.Tune(i)
+}
+
+func (s *Spider) Add(t ...*Task) { //TODO warning! ctx could be nil!
+	for _, i := range t {
+		if i.Request.Depth == -1 {
+			i.Request.Depth = 1
 		}
-		if err != nil {
-			log.Println("Downloader error", err)
-			s.handleError(ctx, err)
-		} else {
-			ctx.Text = resp.Text
-			ctx.Html = resp.Html
-			ctx.Json = resp.Json
+		i := s.handleOnAdd(nil, i)
+		if i != nil {
+			s.Scheduler.AddTask(i)
+		}
+	}
+}
 
-			s.handleResp(ctx)
-			if !ctx.IsDrop() {
-				for _, h := range t.onRespHandlers {
-					h(ctx)
-					if ctx.IsDrop() {
-						break
-					}
+func (s *Spider) Use(fn ...func(s *Spider)) {
+	for _, f := range fn {
+		f(s)
+	}
+}
+
+func (s *Spider) Run() {
+	defer s.taskPool.Release()
+	defer s.itemPool.Release()
+	s.handleOnStart()
+	taskRunning := true
+	go func() {
+		for taskRunning {
+			if i := s.Scheduler.GetItem(); i != nil {
+				err := s.itemPool.Submit(func() {
+					s.handleOnItem(i)
+				})
+				if errors.Is(err, ants.ErrPoolClosed) {
+					panic(ErrRunFinishedSpider)
 				}
 			}
+			runtime.Gosched()
 		}
+	}()
 
-		for _, i := range ctx.Tasks {
-			s.AddTask(ctx, i)
+	for {
+		if t := s.Scheduler.GetTask(); t != nil {
+			err := s.taskPool.Submit(func() {
+				ctx := &Context{
+					Req:   t.Request,
+					Resp:  nil,
+					tasks: []*Task{},
+					items: []interface{}{},
+					Meta:  t.Meta,
+					abort: false,
+				}
+				defer func() {
+					for _, i := range ctx.tasks {
+						i := s.handleOnAdd(ctx, i)
+						if i != nil {
+							if !i.Request.URL.IsAbs() {
+								i.Request.URL = ctx.Resp.HttpResponse.Request.URL.ResolveReference(i.Request.URL)
+							}
+							if i.Request.Depth == -1 {
+								i.Request.Depth = ctx.Req.Depth + 1
+							}
+							s.Scheduler.AddTask(i)
+						}
+					}
+					for _, i := range ctx.items {
+						s.Scheduler.AddItem(i)
+					}
+					if err := recover(); err != nil {
+						s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
+					}
+				}()
+				req := s.handleOnReq(ctx, t.Request)
+				if req != nil {
+					resp, err := s.Downloader.Do(req)
+					ctx.Resp = resp
+					if err == nil {
+						s.handleOnResp(ctx)
+						for _, fn := range t.Handlers {
+							fn(ctx)
+							if ctx.IsAborted() {
+								break
+							}
+						}
+					} else {
+						s.handleOnError(ctx, err)
+					}
+				}
+			})
+			if errors.Is(err, ants.ErrPoolClosed) {
+				panic(ErrRunFinishedSpider)
+			}
+		} else if s.taskPool.Running() == 0 {
+			break
 		}
-		s.handleItem(ctx)
+		runtime.Gosched()
 	}
+	taskRunning = false
+	s.handleOnFinish()
+}
 
-	for (!s.taskQueue.IsEmpty()) || atomic.LoadUint64(&s.workingThread) > 0 {
-		if (!s.taskQueue.IsEmpty()) && (atomic.LoadUint64(&s.workingThread) < s.ThreadPoolSize || s.ThreadPoolSize == 0) {
-			atomic.AddUint64(&s.workingThread, 1)
-			go worker(s.taskQueue.Pop())
-		} else {
-			time.Sleep(100 * time.Nanosecond)
+//func (s *Spider)SetTaskPoolSize(i int){}
+
+/*************************************************************************************/
+func (s *Spider) OnStart(fn func(s *Spider)) {
+	s.onStartHandlers = append(s.onStartHandlers, fn)
+}
+func (s *Spider) handleOnStart() {
+	for _, fn := range s.onStartHandlers {
+		fn(s)
+	}
+}
+
+/*************************************************************************************/
+func (s *Spider) OnFinish(fn func(s *Spider)) {
+	s.onFinishHandlers = append(s.onFinishHandlers, fn)
+}
+func (s *Spider) handleOnFinish() {
+	for _, fn := range s.onFinishHandlers {
+		fn(s)
+	}
+}
+
+/*************************************************************************************/
+func (s *Spider) OnReq(fn func(ctx *Context, req *Request) *Request) {
+	s.onReqHandlers = append(s.onReqHandlers, fn)
+}
+func (s *Spider) handleOnReq(ctx *Context, req *Request) *Request {
+	for _, fn := range s.onReqHandlers {
+		req = fn(ctx, req)
+		if req == nil {
+			return req
 		}
 	}
+	return req
 }
 
-// AddTask add a task to the queue
-func (s *Spider) AddTask(ctx *Context, t *Task) {
-	t = s.handleTask(ctx, t)
-	if t == nil {
-		return
-	}
-
-	if t.Request.Header.Get("User-Agent") == "" {
-		t.Request.Header.Set("User-Agent", DefaultUA)
-	}
-
-	if s.DepthFirst {
-		s.taskQueue.PushInHead(t)
-	} else {
-		s.taskQueue.Push(t)
-	}
+/*************************************************************************************/
+func (s *Spider) OnAdd(fn func(ctx *Context, t *Task) *Task) {
+	s.onAddHandlers = append(s.onAddHandlers, fn)
 }
-
-// TodoContext -- If a task created by `spider.NewTask` as seed task,the OnTask handler will get TodoContext as ctx param
-var TodoContext = &Context{
-	Text:     "",
-	Html:     &goquery.Document{},
-	Json:     map[string]interface{}{},
-	Request:  &Request{},
-	Response: &Response{},
-	Tasks:    []*Task{},
-	Items:    []interface{}{},
-	Meta:     map[string]interface{}{},
-	drop:     false,
-}
-
-// NewTask create a task and add it to the queue
-func (s *Spider) NewTask(req *Request, RespHandler ...func(ctx *Context)) {
-	s.AddTask(TodoContext, NewTask(req, RespHandler...))
-}
-
-// NewTaskWithMeta create a task with meta data and add it to the queue
-func (s *Spider) NewTaskWithMeta(req *Request, meta map[string]interface{}, RespHandler ...func(ctx *Context)) {
-	t := NewTask(req, RespHandler...)
-	t.Meta = meta
-	s.AddTask(TodoContext, t)
-}
-
-func (s *Spider) handleResp(ctx *Context) {
-	for _, h := range s.onRespHandlers {
-		h(ctx)
-		if ctx.IsDrop() == true {
-			return
-		}
-	}
-}
-func (s *Spider) handleTask(ctx *Context, t *Task) *Task {
-	for _, h := range s.onTaskHandlers {
-		t = h(ctx, t)
+func (s *Spider) handleOnAdd(ctx *Context, t *Task) *Task {
+	for _, fn := range s.onAddHandlers {
+		t = fn(ctx, t)
 		if t == nil {
-			return nil
+			return t
 		}
 	}
 	return t
 }
-func (s *Spider) handleItem(ctx *Context) {
-	for _, h := range s.onItemHandlers {
-		for _, i := range ctx.Items {
-			i = h(ctx, i)
-			if i == nil {
-				return
-			}
+
+/*************************************************************************************/
+func (s *Spider) OnResp(fn func(ctx *Context)) {
+	s.onRespHandlers = append(s.onRespHandlers, fn)
+}
+func (s *Spider) handleOnResp(ctx *Context) {
+	for _, fn := range s.onRespHandlers {
+		fn(ctx)
+		if ctx.IsAborted() {
+			return
 		}
 	}
 }
-func (s *Spider) handleError(ctx *Context, err error) {
-	for _, h := range s.onErrorHandlers {
-		h(ctx, err)
+
+/*************************************************************************************/
+func (s *Spider) OnItem(fn func(i interface{}) interface{}) {
+	s.onItemHandlers = append(s.onItemHandlers, fn)
+}
+func (s *Spider) handleOnItem(i interface{}) {
+	for _, fn := range s.onItemHandlers {
+		i = fn(i)
+		if i == nil {
+			return
+		}
 	}
 }
 
-// OnResp add an On Response handler func to the spider
-func (s *Spider) OnResp(h func(ctx *Context)) {
-	s.onRespHandlers = append(s.onRespHandlers, h)
+/*************************************************************************************/
+func (s *Spider) OnError(fn func(ctx *Context, err error)) {
+	s.onErrorHandlers = append(s.onErrorHandlers, fn)
 }
-
-// OnTask add an On New Task handler func to the spider
-func (s *Spider) OnTask(h func(ctx *Context, t *Task) *Task) {
-	s.onTaskHandlers = append(s.onTaskHandlers, h)
-}
-
-// OnItem add an On New Item handler func to the spider. For some storage
-func (s *Spider) OnItem(h func(ctx *Context, i interface{}) interface{}) {
-	s.onItemHandlers = append(s.onItemHandlers, h)
-}
-
-// OnError add an On Error handler func to the spider
-func (s *Spider) OnError(h func(ctx *Context, err error)) {
-	s.onErrorHandlers = append(s.onErrorHandlers, h)
+func (s *Spider) handleOnError(ctx *Context, err error) {
+	for _, fn := range s.onErrorHandlers {
+		fn(ctx, err)
+	}
 }
