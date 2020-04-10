@@ -22,7 +22,11 @@ func TestBasic(t *testing.T) {
 		r += 1
 		return req
 	})
-	s.Add(NewTask(
+	s.OnResp(func(ctx *Context) {
+		t.Log("OnResp")
+		r += 1
+	})
+	s.AddTask(
 		GetReq("https://httpbin.org/get?Goribot%20test=hello%20world").SetParam(map[string]string{
 			"Goribot test": "hello world",
 		}).WithMeta("test", "hello world"),
@@ -41,10 +45,11 @@ func TestBasic(t *testing.T) {
 			t.Log("Handler 2")
 			panic("some test error")
 		},
-	))
+	)
 	s.OnItem(func(i interface{}) interface{} {
 		t.Log("OnItem")
 		r += 1
+		panic("unexpect error")
 		return i
 	})
 	s.OnError(func(ctx *Context, err error) {
@@ -56,7 +61,7 @@ func TestBasic(t *testing.T) {
 		r += 1
 	})
 	s.Run()
-	if r != 7 {
+	if r != 8 {
 		t.Error("handlers miss " + fmt.Sprint(r))
 	}
 }

@@ -159,18 +159,13 @@ func (s *Request) WithMeta(k, v string) *Request {
 
 // Response is a object of HTTP response
 type Response struct {
-	// StatusCode is the status code of the Response
-	StatusCode int
-	// Header contains the Response's HTTP headers
-	Header *http.Header
+	*http.Response
 	// Body is the content of the Response
 	Body []byte
 	// Text is the content of the Response parsed as string
 	Text string
-	// Request is the Request object of the response
-	Request *Request
-	// HttpResponse is the Response from builtin http pkg
-	HttpResponse *http.Response
+	// Request is the Req object from goribot of the response.Tip: there is another Request attr come from *http.Response
+	Req *Request
 	// Dom is the parsed html object
 	Dom *goquery.Document
 	// Meta contains data between a Request and a Response
@@ -186,8 +181,8 @@ func (s *Response) DecodeAndParse() error {
 	if strings.Contains(contentType, "text/") ||
 		strings.Contains(contentType, "/json") {
 		if !strings.Contains(contentType, "charset") {
-			if s.Request.ResponseCharacterEncoding != "" {
-				contentType += "; charset=" + s.Request.ResponseCharacterEncoding
+			if s.Req.ResponseCharacterEncoding != "" {
+				contentType += "; charset=" + s.Req.ResponseCharacterEncoding
 			} else {
 				r, err := chardet.NewTextDetector().DetectBest(s.Body)
 				if err != nil {
@@ -256,11 +251,10 @@ func (s *BaseDownloader) Do(req *Request) (resp *Response, err error) {
 	defer res.Body.Close()
 
 	resp = &Response{
-		StatusCode:   res.StatusCode,
-		Header:       &res.Header,
-		Request:      req,
-		HttpResponse: res,
-		Meta:         req.Meta,
+		Response: res,
+		Text:     "",
+		Req:      req,
+		Meta:     req.Meta,
 	}
 
 	bodyReader := res.Body

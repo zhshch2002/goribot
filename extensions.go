@@ -7,17 +7,25 @@ import (
 	"time"
 )
 
-// TODO 限制请求速率
-
 // RefererFiller is an extension can add Referer for new task
 func RefererFiller() func(s *Spider) {
 	return func(s *Spider) {
 		s.OnAdd(func(ctx *Context, t *Task) *Task {
 			if ctx != nil {
-				t.Request.Header.Set("Referer", ctx.Resp.HttpResponse.Request.URL.String())
+				t.Request.Header.Set("Referer", ctx.Resp.Request.URL.String())
 			}
 			return t
 		})
+	}
+}
+
+// SetDepthFirst is an extension change Scheduler DepthFirst setting
+func SetDepthFirst(d bool) func(s *Spider) {
+	return func(s *Spider) {
+		if _, ok := s.Scheduler.(*BaseScheduler); !ok {
+			panic("spider is not using BaseScheduler from goribot")
+		}
+		s.Scheduler = NewBaseScheduler(d)
 	}
 }
 

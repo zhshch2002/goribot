@@ -1,6 +1,8 @@
 package goribot
 
-import "sync"
+import (
+	"sync"
+)
 
 // Scheduler is a queue of tasks and items
 type Scheduler interface {

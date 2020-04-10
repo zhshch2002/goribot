@@ -7,19 +7,17 @@ import (
 	"runtime"
 )
 
+type CtxHandlerFun func(ctx *Context)
+
 var ErrRunFinishedSpider = errors.New("running a spider which is finished,you could recreate this spider and run the new one")
 
 type Task struct {
 	Request  *Request
 	Handlers []func(ctx *Context)
-	Meta     map[string]interface{}
 }
 
 func NewTask(request *Request, handlers ...func(ctx *Context)) *Task {
-	return &Task{Request: request, Handlers: handlers, Meta: request.Meta}
-}
-func NewTaskWithMeta(request *Request, meta map[string]interface{}, handlers ...func(ctx *Context)) *Task {
-	return &Task{Request: request, Handlers: handlers, Meta: meta}
+	return &Task{Request: request, Handlers: handlers}
 }
 
 type Spider struct {
@@ -61,16 +59,16 @@ func (s *Spider) SetItemPoolSize(i int) {
 	s.itemPool.Tune(i)
 }
 
-func (s *Spider) Add(t ...*Task) { //TODO warning! ctx could be nil!
-	for _, i := range t {
-		if i.Request.Depth == -1 {
-			i.Request.Depth = 1
-		}
-		i := s.handleOnAdd(nil, i)
-		if i != nil {
-			s.Scheduler.AddTask(i)
-		}
+func (s *Spider) AddTask(request *Request, handlers ...func(ctx *Context)) {
+	if request.Depth == -1 {
+		request.Depth = 1
 	}
+	t := NewTask(request, handlers...)
+	t = s.handleOnAdd(nil, t)
+	if t != nil {
+		s.Scheduler.AddTask(t)
+	}
+
 }
 
 func (s *Spider) Use(fn ...func(s *Spider)) {
@@ -106,7 +104,7 @@ func (s *Spider) Run() {
 					Resp:  nil,
 					tasks: []*Task{},
 					items: []interface{}{},
-					Meta:  t.Meta,
+					Meta:  t.Request.Meta,
 					abort: false,
 				}
 				defer func() {
@@ -114,7 +112,7 @@ func (s *Spider) Run() {
 						i := s.handleOnAdd(ctx, i)
 						if i != nil {
 							if !i.Request.URL.IsAbs() {
-								i.Request.URL = ctx.Resp.HttpResponse.Request.URL.ResolveReference(i.Request.URL)
+								i.Request.URL = ctx.Resp.Request.URL.ResolveReference(i.Request.URL)
 							}
 							if i.Request.Depth == -1 {
 								i.Request.Depth = ctx.Req.Depth + 1
@@ -130,10 +128,18 @@ func (s *Spider) Run() {
 					}
 				}()
 				req := s.handleOnReq(ctx, t.Request)
+				if req.Err != nil {
+					s.handleOnError(ctx, req.Err)
+					return
+				}
 				if req != nil {
 					resp, err := s.Downloader.Do(req)
 					ctx.Resp = resp
 					if err == nil {
+						ctx.Meta = resp.Meta
+						if ctx.Resp.Text == "" {
+							_ = ctx.Resp.DecodeAndParse()
+						}
 						s.handleOnResp(ctx)
 						for _, fn := range t.Handlers {
 							fn(ctx)

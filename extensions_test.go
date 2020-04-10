@@ -10,12 +10,12 @@ func TestRefererFiller(t *testing.T) {
 	)
 	got1 := false
 	got2 := false
-	s.Add(NewTask(
+	s.AddTask(
 		GetReq("https://httpbin.org/"),
 		func(ctx *Context) {
 			got1 = true
 			t.Log("got first")
-			ctx.AddTask(NewTask(
+			ctx.AddTask(
 				GetReq("https://httpbin.org/get").SetHeader("123", "ABC"),
 				func(ctx *Context) {
 					t.Log("got second")
@@ -24,11 +24,39 @@ func TestRefererFiller(t *testing.T) {
 						t.Error("wrong Referer", ctx.Resp.Json("headers.Referer").String())
 					}
 				},
-			))
+			)
 		},
-	))
+	)
 	s.Run()
 	if !got1 || !got2 {
+		t.Error("didn't get data")
+	}
+}
+
+func TestSetDepthFirst(t *testing.T) {
+	got1, got2 := false, false
+	s := NewSpider(
+		SetDepthFirst(true),
+	)
+	s.AddTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			got1 = true
+			t.Log("got first")
+		},
+	)
+	s.AddTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			got2 = true
+			if got1 {
+				t.Error("wrong task order")
+			}
+			t.Log("got second")
+		},
+	)
+	s.Run()
+	if (!got1) || (!got2) {
 		t.Error("didn't get data")
 	}
 }
@@ -38,26 +66,26 @@ func TestReqDeduplicate(t *testing.T) {
 	s := NewSpider(
 		ReqDeduplicate(),
 	)
-	s.Add(NewTask(
+	s.AddTask(
 		GetReq("https://httpbin.org/get"),
 		func(ctx *Context) {
 			got1 = true
 			t.Log("got first")
-			ctx.AddTask(NewTask(
+			ctx.AddTask(
 				GetReq("https://httpbin.org/get").SetHeader("123", "ABC"),
 				func(ctx *Context) {
 					t.Log("got second")
 					got2 = true
 				},
-			))
+			)
 		},
-	))
-	s.Add(NewTask(
+	)
+	s.AddTask(
 		GetReq("https://httpbin.org/get"),
 		func(ctx *Context) {
 			t.Error("Deduplicate error")
 		},
-	))
+	)
 	s.Run()
 	if (!got1) || (!got2) {
 		t.Error("didn't get data")
@@ -69,7 +97,7 @@ func TestRandomUserAgent(t *testing.T) {
 		RandomUserAgent(),
 	)
 	got := false
-	s.Add(NewTask(
+	s.AddTask(
 		GetReq("https://httpbin.org/get"),
 		func(ctx *Context) {
 			t.Log("got resp data", ctx.Resp.Text)
@@ -79,7 +107,7 @@ func TestRandomUserAgent(t *testing.T) {
 				got = true
 			}
 		},
-	))
+	)
 	s.Run()
 	if !got {
 		t.Error("didn't get data")
