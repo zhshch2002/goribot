@@ -7,6 +7,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"os"
 	"runtime"
+	"time"
 )
 
 type CtxHandlerFun func(ctx *Context)
@@ -36,6 +37,7 @@ func NewTask(request *Request, handlers ...CtxHandlerFun) *Task {
 type Spider struct {
 	Scheduler                         Scheduler
 	Downloader                        Downloader
+	AutoStop                          bool
 	taskPool, itemPool                *ants.Pool
 	onStartHandlers, onFinishHandlers []func(s *Spider)
 	onReqHandlers                     []func(ctx *Context, req *Request) *Request
@@ -59,6 +61,7 @@ func NewSpider(exts ...func(s *Spider)) *Spider {
 		Downloader: NewBaseDownloader(),
 		taskPool:   tp,
 		itemPool:   ip,
+		AutoStop:   true,
 	}
 	s.Use(exts...)
 	return s
@@ -106,8 +109,11 @@ func (s *Spider) Run() {
 						panic(ErrRunFinishedSpider)
 					}
 				}
+			} else if !s.AutoStop {
+				time.Sleep(5 * time.Second)
 			}
 			runtime.Gosched()
+			time.Sleep(500 * time.Microsecond)
 		}
 	}()
 
@@ -172,10 +178,16 @@ func (s *Spider) Run() {
 					panic(ErrRunFinishedSpider)
 				}
 			} else if s.taskPool.Running() == 0 {
-				break
+				if s.AutoStop {
+					break
+				} else {
+					Log.Info("Waiting for more tasks")
+					time.Sleep(5 * time.Second)
+				}
 			}
 		}
 		runtime.Gosched()
+		time.Sleep(500 * time.Microsecond)
 	}
 	taskRunning = false
 	s.handleOnFinish()

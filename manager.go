@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"github.com/go-redis/redis"
 	"github.com/panjf2000/ants/v2"
 	"runtime"
+	"sync"
+	"time"
 )
 
 const ItemsSuffix = "_items"
 const TasksSuffix = "_tasks"
+const DeduplicateSuffix = "_deduplicate"
 
 type item struct {
 	Data interface{}
@@ -54,6 +58,7 @@ func (s *Manager) SetItemPoolSize(i int) {
 }
 
 func (s *Manager) Run() {
+	s.redis.Del(s.sName + DeduplicateSuffix)
 	for {
 		if s.itemPool.Free() > 0 {
 			if i := s.GetItem(); i != nil {
@@ -64,10 +69,12 @@ func (s *Manager) Run() {
 					panic(ErrRunFinishedSpider)
 				}
 			} else if s.itemPool.Running() == 0 {
-				break
+				Log.Info("Waiting for more items")
+				time.Sleep(5 * time.Second)
 			}
 		}
 		runtime.Gosched()
+		time.Sleep(500 * time.Microsecond)
 	}
 }
 
@@ -169,4 +176,47 @@ func (s *RedisScheduler) IsTaskEmpty() bool {
 func (s *RedisScheduler) IsItemEmpty() bool {
 	l, err := s.redis.LLen(s.sName + ItemsSuffix).Result()
 	return l == 0 || err != nil
+}
+
+// ReqDeduplicate is an extension can deduplicate new task based on redis to support distributed
+func RedisReqDeduplicate(r *redis.Client, sName string) func(s *Spider) {
+	lock := sync.Mutex{}
+	return func(s *Spider) {
+		s.OnAdd(func(ctx *Context, t *Task) *Task {
+			has := GetRequestHash(t.Request)
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			res, err := r.SAdd(sName+DeduplicateSuffix, has[:]).Result()
+			if err == nil && res == 0 {
+				return nil
+			}
+			return t
+		})
+	}
+}
+
+func RedisDistributed(ro *redis.Options, sName string, useDeduplicate bool, onSeedHandler CtxHandlerFun) func(s *Spider) {
+	c1 := redis.NewClient(ro)
+	if pong, err := c1.Ping().Result(); pong != "PONG" || err != nil {
+		panic("redis connect error " + fmt.Sprint(pong, err))
+	}
+	var c2 *redis.Client
+	if useDeduplicate {
+		c2 = redis.NewClient(ro)
+		if pong, err := c2.Ping().Result(); pong != "PONG" || err != nil {
+			panic("redis connect error " + fmt.Sprint(pong, err))
+		}
+	}
+	return func(s *Spider) {
+		s.Scheduler = NewRedisScheduler(c1, sName, 10, onSeedHandler)
+		if useDeduplicate {
+			s.Use(RedisReqDeduplicate(c2, sName))
+		}
+		s.AutoStop = false
+		s.OnFinish(func(s *Spider) {
+			_ = c1.Close()
+		})
+	}
 }
