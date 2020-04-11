@@ -8,7 +8,6 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/panjf2000/ants/v2"
 	"runtime"
-	"sync"
 	"time"
 )
 
@@ -72,9 +71,10 @@ func (s *Manager) Run() {
 				Log.Info("Waiting for more items")
 				time.Sleep(5 * time.Second)
 			}
+		} else {
+			time.Sleep(500 * time.Microsecond)
 		}
 		runtime.Gosched()
-		time.Sleep(500 * time.Microsecond)
 	}
 }
 
@@ -180,14 +180,9 @@ func (s *RedisScheduler) IsItemEmpty() bool {
 
 // ReqDeduplicate is an extension can deduplicate new task based on redis to support distributed
 func RedisReqDeduplicate(r *redis.Client, sName string) func(s *Spider) {
-	lock := sync.Mutex{}
 	return func(s *Spider) {
 		s.OnAdd(func(ctx *Context, t *Task) *Task {
 			has := GetRequestHash(t.Request)
-
-			lock.Lock()
-			defer lock.Unlock()
-
 			res, err := r.SAdd(sName+DeduplicateSuffix, has[:]).Result()
 			if err == nil && res == 0 {
 				return nil

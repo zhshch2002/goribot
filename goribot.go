@@ -185,9 +185,10 @@ func (s *Spider) Run() {
 					time.Sleep(5 * time.Second)
 				}
 			}
+		} else {
+			time.Sleep(500 * time.Microsecond)
 		}
 		runtime.Gosched()
-		time.Sleep(500 * time.Microsecond)
 	}
 	taskRunning = false
 	s.handleOnFinish()

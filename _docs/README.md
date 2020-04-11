@@ -1,12 +1,17 @@
 ---
 title: 欢迎 Welcome！
-# sidebar: auto
 ---
 
 # Goribot
-一个分布式友好类 Scrapy 的 Golang 爬虫框架。
+一个轻量的分布式友好的 Golang 爬虫框架。
+
 ## 🚀Feature
 * 优雅的 API
+* 整洁、有趣的文档
+* 高速
+* 友善的分布式支持
+* 丰富的扩展支持
+* 轻量，适于学习或快速开箱搭建
 
 ## 👜获取 Goribot
 ```sh
@@ -51,12 +56,16 @@ func main() {
 * [colly](https://github.com/gocolly/colly)
 * [gjson](https://github.com/tidwall/gjson)
 * [goquery](https://github.com/PuerkitoBio/goquery)
+* [go-logging](https://github.com/op/go-logging)
+* [go-redis](https://github.com/go-redis/redis)
+
+万分感谢以上项目的帮助🙏。
 
 ## 📃TODO
 
-* 分布式支持
+* ~~分布式支持~~
 * 扩展
-  * Json、CVS数据收集
+  * Json、CVS 数据收集
   * site Limiter
   * 随机代理
   * 错误重试

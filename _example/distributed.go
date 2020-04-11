@@ -6,12 +6,11 @@ import (
 	"github.com/zhshch2002/goribot"
 )
 
-// docker run --name some-redis -d -p 6379:6379 redis
 func main() {
 	ro := &redis.Options{
 		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Password: "",
+		DB:       0,
 	}
 
 	sName := "DistributedTest"
