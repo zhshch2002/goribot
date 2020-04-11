@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+	goribot.Log.Info("Start spider")
 	s := goribot.NewSpider()
 
 	s.AddTask(

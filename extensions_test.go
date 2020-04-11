@@ -38,6 +38,7 @@ func TestSetDepthFirst(t *testing.T) {
 	s := NewSpider(
 		SetDepthFirst(true),
 	)
+	s.SetTaskPoolSize(1)
 	s.AddTask(
 		GetReq("https://httpbin.org/get"),
 		func(ctx *Context) {

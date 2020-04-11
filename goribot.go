@@ -3,20 +3,33 @@ package goribot
 import (
 	"errors"
 	"fmt"
+	"github.com/op/go-logging"
 	"github.com/panjf2000/ants/v2"
+	"os"
 	"runtime"
 )
 
 type CtxHandlerFun func(ctx *Context)
 
+var Log = logging.MustGetLogger("goribot")
+var format = logging.MustStringFormatter(
+	`%{color}%{time:15:04:05.000} %{shortfile} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+)
+
+func init() {
+	backend := logging.NewLogBackend(os.Stdout, "Goribot ", 0)
+	backendFormatter := logging.NewBackendFormatter(backend, format)
+	logging.SetBackend(backendFormatter)
+}
+
 var ErrRunFinishedSpider = errors.New("running a spider which is finished,you could recreate this spider and run the new one")
 
 type Task struct {
 	Request  *Request
-	Handlers []func(ctx *Context)
+	Handlers []CtxHandlerFun
 }
 
-func NewTask(request *Request, handlers ...func(ctx *Context)) *Task {
+func NewTask(request *Request, handlers ...CtxHandlerFun) *Task {
 	return &Task{Request: request, Handlers: handlers}
 }
 
@@ -27,7 +40,7 @@ type Spider struct {
 	onStartHandlers, onFinishHandlers []func(s *Spider)
 	onReqHandlers                     []func(ctx *Context, req *Request) *Request
 	onAddHandlers                     []func(ctx *Context, req *Task) *Task
-	onRespHandlers                    []func(ctx *Context)
+	onRespHandlers                    []CtxHandlerFun
 	onItemHandlers                    []func(i interface{}) interface{}
 	onErrorHandlers                   []func(ctx *Context, err error)
 }
@@ -59,7 +72,7 @@ func (s *Spider) SetItemPoolSize(i int) {
 	s.itemPool.Tune(i)
 }
 
-func (s *Spider) AddTask(request *Request, handlers ...func(ctx *Context)) {
+func (s *Spider) AddTask(request *Request, handlers ...CtxHandlerFun) {
 	if request.Depth == -1 {
 		request.Depth = 1
 	}
@@ -84,12 +97,14 @@ func (s *Spider) Run() {
 	taskRunning := true
 	go func() {
 		for taskRunning {
-			if i := s.Scheduler.GetItem(); i != nil {
-				err := s.itemPool.Submit(func() {
-					s.handleOnItem(i)
-				})
-				if errors.Is(err, ants.ErrPoolClosed) {
-					panic(ErrRunFinishedSpider)
+			if s.itemPool.Free() > 0 {
+				if i := s.Scheduler.GetItem(); i != nil {
+					err := s.itemPool.Submit(func() {
+						s.handleOnItem(i)
+					})
+					if errors.Is(err, ants.ErrPoolClosed) {
+						panic(ErrRunFinishedSpider)
+					}
 				}
 			}
 			runtime.Gosched()
@@ -97,66 +112,68 @@ func (s *Spider) Run() {
 	}()
 
 	for {
-		if t := s.Scheduler.GetTask(); t != nil {
-			err := s.taskPool.Submit(func() {
-				ctx := &Context{
-					Req:   t.Request,
-					Resp:  nil,
-					tasks: []*Task{},
-					items: []interface{}{},
-					Meta:  t.Request.Meta,
-					abort: false,
-				}
-				defer func() {
-					for _, i := range ctx.tasks {
-						i := s.handleOnAdd(ctx, i)
-						if i != nil {
-							if !i.Request.URL.IsAbs() {
-								i.Request.URL = ctx.Resp.Request.URL.ResolveReference(i.Request.URL)
-							}
-							if i.Request.Depth == -1 {
-								i.Request.Depth = ctx.Req.Depth + 1
-							}
-							s.Scheduler.AddTask(i)
-						}
+		if s.taskPool.Free() > 0 {
+			if t := s.Scheduler.GetTask(); t != nil {
+				err := s.taskPool.Submit(func() {
+					ctx := &Context{
+						Req:   t.Request,
+						Resp:  nil,
+						tasks: []*Task{},
+						items: []interface{}{},
+						Meta:  t.Request.Meta,
+						abort: false,
 					}
-					for _, i := range ctx.items {
-						s.Scheduler.AddItem(i)
-					}
-					if err := recover(); err != nil {
-						s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
-					}
-				}()
-				req := s.handleOnReq(ctx, t.Request)
-				if req.Err != nil {
-					s.handleOnError(ctx, req.Err)
-					return
-				}
-				if req != nil {
-					resp, err := s.Downloader.Do(req)
-					ctx.Resp = resp
-					if err == nil {
-						ctx.Meta = resp.Meta
-						if ctx.Resp.Text == "" {
-							_ = ctx.Resp.DecodeAndParse()
-						}
-						s.handleOnResp(ctx)
-						for _, fn := range t.Handlers {
-							fn(ctx)
-							if ctx.IsAborted() {
-								break
+					defer func() {
+						for _, i := range ctx.tasks {
+							i := s.handleOnAdd(ctx, i)
+							if i != nil {
+								if !i.Request.URL.IsAbs() {
+									i.Request.URL = ctx.Resp.Request.URL.ResolveReference(i.Request.URL)
+								}
+								if i.Request.Depth == -1 {
+									i.Request.Depth = ctx.Req.Depth + 1
+								}
+								s.Scheduler.AddTask(i)
 							}
 						}
-					} else {
-						s.handleOnError(ctx, err)
+						for _, i := range ctx.items {
+							s.Scheduler.AddItem(i)
+						}
+						if err := recover(); err != nil {
+							s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
+						}
+					}()
+					req := s.handleOnReq(ctx, t.Request)
+					if req.Err != nil {
+						s.handleOnError(ctx, req.Err)
+						return
 					}
+					if req != nil {
+						resp, err := s.Downloader.Do(req)
+						ctx.Resp = resp
+						if err == nil {
+							ctx.Meta = resp.Meta
+							if ctx.Resp.Text == "" {
+								_ = ctx.Resp.DecodeAndParse()
+							}
+							s.handleOnResp(ctx)
+							for _, fn := range t.Handlers {
+								fn(ctx)
+								if ctx.IsAborted() {
+									break
+								}
+							}
+						} else {
+							s.handleOnError(ctx, err)
+						}
+					}
+				})
+				if errors.Is(err, ants.ErrPoolClosed) {
+					panic(ErrRunFinishedSpider)
 				}
-			})
-			if errors.Is(err, ants.ErrPoolClosed) {
-				panic(ErrRunFinishedSpider)
+			} else if s.taskPool.Running() == 0 {
+				break
 			}
-		} else if s.taskPool.Running() == 0 {
-			break
 		}
 		runtime.Gosched()
 	}
@@ -215,7 +232,7 @@ func (s *Spider) handleOnAdd(ctx *Context, t *Task) *Task {
 }
 
 /*************************************************************************************/
-func (s *Spider) OnResp(fn func(ctx *Context)) {
+func (s *Spider) OnResp(fn CtxHandlerFun) {
 	s.onRespHandlers = append(s.onRespHandlers, fn)
 }
 func (s *Spider) handleOnResp(ctx *Context) {
