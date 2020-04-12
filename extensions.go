@@ -1,11 +1,253 @@
 package goribot
 
 import (
+	"bytes"
 	"crypto/md5"
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
+	"github.com/op/go-logging"
+	"github.com/slyrz/robots"
 	"math/rand"
+	"os"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+type JsonItem struct {
+	Data interface{}
+}
+
+// SaveItemsAsCSV is a extension save items to a json file
+func SaveItemsAsJSON(f *os.File) func(s *Spider) {
+	lock := sync.Mutex{}
+	var buf bytes.Buffer
+	buf.WriteString("[")
+	gotFrist := false
+	return func(s *Spider) {
+		s.OnItem(func(i interface{}) interface{} {
+			if data, ok := i.(JsonItem); ok {
+				lock.Lock()
+				defer lock.Unlock()
+				if gotFrist {
+					_, err := buf.WriteString(",")
+					if err != nil {
+						Log.Error(err)
+					}
+				} else {
+					gotFrist = true
+				}
+				res, err := json.Marshal(data.Data)
+				if err != nil {
+					Log.Error(err)
+				}
+				_, err = buf.Write(res)
+				if err != nil {
+					Log.Error(err)
+				}
+
+			}
+			return i
+		})
+		s.OnFinish(func(s *Spider) {
+			buf.WriteString("]")
+			_, err := f.Write(buf.Bytes())
+			if err != nil {
+				Log.Error(err)
+			}
+		})
+	}
+}
+
+type CsvItem []string
+
+// SaveItemsAsCSV is a extension save items to a csv file
+func SaveItemsAsCSV(f *os.File) func(s *Spider) {
+	lock := sync.Mutex{}
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	return func(s *Spider) {
+		s.OnItem(func(i interface{}) interface{} {
+			if data, ok := i.(CsvItem); ok {
+				lock.Lock()
+				defer lock.Unlock()
+				err := w.Write(data)
+				if err != nil {
+					Log.Error(err)
+				}
+			}
+			return i
+		})
+		s.OnFinish(func(s *Spider) {
+			w.Flush()
+			_, err := f.Write(buf.Bytes())
+			if err != nil {
+				Log.Error(err)
+			}
+		})
+	}
+}
+
+// Retry is a extension make a new request when get response with error
+func Retry(maxTimes int, okcode ...int) func(s *Spider) {
+	return func(s *Spider) {
+		s.OnError(func(ctx *Context, err error) {
+			if e, ok := err.(DownloaderErr); ok {
+				if e.Request != nil {
+					if t, ok := e.Request.Meta["RetryTimes"]; !ok || t.(int) < maxTimes {
+						req := e.Request
+						if !ok {
+							req.Meta["RetryTimes"] = 1
+						} else {
+							req.Meta["RetryTimes"] = req.Meta["RetryTimes"].(int) + 1
+						}
+						Log.Info("Request to", req.URL, "[tried", req.Meta["RetryTimes"], "times]", "got error.Retry.")
+						s.AddTask(req, ctx.Handlers...)
+					}
+				}
+			}
+		})
+		if len(okcode) > 0 {
+			s.OnResp(func(ctx *Context) {
+				for _, c := range okcode {
+					if ctx.Resp.StatusCode == c {
+						return
+					}
+					if t, ok := ctx.Req.Meta["RetryTimes"]; !ok || t.(int) < maxTimes {
+						req := ctx.Req
+						if !ok {
+							req.Meta["RetryTimes"] = 1
+						} else {
+							req.Meta["RetryTimes"] = req.Meta["RetryTimes"].(int) + 1
+						}
+						Log.Info("Request to", req.URL, "[tried", req.Meta["RetryTimes"], "times]", "got error.Retry.")
+						s.AddTask(req, ctx.Handlers...)
+						ctx.Abort()
+					}
+				}
+			})
+		}
+	}
+}
+
+// RobotsTxt is an extension can parse the robots.txt and follow it
+func RobotsTxt(baseUrl, ua string) func(s *Spider) {
+	if !strings.HasSuffix(baseUrl, "/") {
+		baseUrl += "/"
+	}
+	resp, err := NewBaseDownloader().Do(GetReq(baseUrl + "robots.txt"))
+	if err != nil {
+		Log.Error("get robots.txt error", err)
+		return func(s *Spider) {}
+	}
+
+	RobotsTxt := robots.New(strings.NewReader(resp.Text), ua)
+	return func(s *Spider) {
+		s.OnReq(func(ctx *Context, req *Request) *Request {
+			if RobotsTxt.Allow(req.URL.Path) {
+				return req
+			}
+			return nil
+
+		})
+	}
+}
+
+var spiderLogErrorFormat = logging.MustStringFormatter(
+	`%{time:15:04:05.000} %{shortfile} ▶ %{level:.4s} %{id:03x} %{message}`,
+)
+
+type ErrorItem struct {
+	Ctx *Context
+	Msg string
+}
+
+// SpiderLogError is a extension logs special or error response
+func SpiderLogError(f *os.File) func(s *Spider) {
+	log := logging.MustGetLogger("goribot")
+	backend := logging.NewBackendFormatter(logging.NewLogBackend(f, "", 0), spiderLogErrorFormat)
+	backendLeveled := logging.AddModuleLevel(backend)
+	backendLeveled.SetLevel(logging.DEBUG, "")
+	log.SetBackend(backendLeveled)
+	return func(s *Spider) {
+		s.OnError(func(ctx *Context, err error) {
+			log.Error(
+				"\n",
+				"Got 'OnError' with url ", ctx.Req.URL, "\n",
+				"Err:", err, "\n",
+				"Req Header:", ctx.Req.Header, "Proxy:", ctx.Req.ProxyURL, "Err:", ctx.Req.Err, "\n",
+				func() string {
+					if ctx.Resp != nil {
+						return fmt.Sprint(
+							"Resp Header:", ctx.Resp.Header,
+							" Len:", len(ctx.Resp.Body),
+							" Text:", ctx.Resp.Text,
+						)
+					}
+					return ""
+				}(), "\n",
+			)
+		})
+		s.OnItem(func(i interface{}) interface{} {
+			if e, ok := i.(ErrorItem); ok {
+				ctx, msg := e.Ctx, e.Msg
+				log.Error(
+					"\n",
+					"Got 'ErrorItem' with url ", ctx.Req.URL, "\n",
+					"Msg:", msg, "\n",
+					"Req Header:", ctx.Req.Header, "Proxy:", ctx.Req.ProxyURL, "Err:", ctx.Req.Err, "\n",
+					func() string {
+						if ctx.Resp != nil {
+							return fmt.Sprint(
+								"Resp Status code:", ctx.Resp.StatusCode, " Header:", ctx.Resp.Header,
+								" Len:", len(ctx.Resp.Body),
+								" Text:", ctx.Resp.Text,
+							)
+						}
+						return ""
+					}(), "\n",
+				)
+			}
+			return i
+		})
+	}
+}
+
+// SpiderLogPrint is a extension print spider working status
+func SpiderLogPrint() func(s *Spider) {
+	var t, i int64 = 0, 0
+	const n int64 = 5 // 打印时间间隔
+	go func() {
+		for {
+			tt, ii := atomic.LoadInt64(&t), atomic.LoadInt64(&i)
+			Log.Info(
+				"Handled", tt, "tasks and", ii, "items", "in", n, "sec",
+				tt/n, "task/sec", ii/n, "item/sec",
+			)
+			atomic.SwapInt64(&t, 0)
+			atomic.SwapInt64(&i, 0)
+			time.Sleep(time.Duration(n) * time.Second)
+		}
+	}()
+	return func(s *Spider) {
+		s.OnStart(func(s *Spider) {
+			Log.Info("Spider start")
+		})
+		s.OnReq(func(ctx *Context, req *Request) *Request {
+			atomic.AddInt64(&t, 1)
+			return req
+		})
+		s.OnItem(func(item interface{}) interface{} {
+			atomic.AddInt64(&i, 1)
+			return item
+		})
+		s.OnFinish(func(s *Spider) {
+			Log.Info("Spider finish")
+		})
+	}
+}
 
 // RefererFiller is an extension can add Referer for new task
 func RefererFiller() func(s *Spider) {
@@ -35,6 +277,9 @@ func ReqDeduplicate() func(s *Spider) {
 	lock := sync.Mutex{}
 	return func(s *Spider) {
 		s.OnAdd(func(ctx *Context, t *Task) *Task {
+			if _, ok := t.Request.Meta["RetryTimes"]; ok {
+				return t
+			}
 			has := GetRequestHash(t.Request)
 
 			lock.Lock()
@@ -50,12 +295,31 @@ func ReqDeduplicate() func(s *Spider) {
 	}
 }
 
+// RandomUserAgent is an extension can set random proxy url for new task
+func RandomProxy(p ...string) func(s *Spider) {
+	var RandSrc int64
+	return func(s *Spider) {
+		s.OnReq(func(ctx *Context, req *Request) *Request {
+			_, ok := req.Meta["RandomProxy"]
+			if req.ProxyURL == "" || ok {
+				RandSrc += 1
+				ra := rand.New(rand.NewSource(time.Now().Unix() + RandSrc))
+				RandSrc = ra.Int63()
+				req.ProxyURL = p[ra.Intn(len(p))]
+				req.Meta["RandomProxy"] = struct{}{}
+			}
+			return req
+		})
+	}
+}
+
 // RandomUserAgent is an extension can set random User-Agent for new task
 func RandomUserAgent() func(s *Spider) {
 	var RandSrc int64
 	return func(s *Spider) {
 		s.OnReq(func(ctx *Context, req *Request) *Request {
-			if req.Request.Header.Get("User-Agent") == "" {
+			_, ok := req.Meta["RandomUserAgent"]
+			if req.Request.Header.Get("User-Agent") == "" || ok {
 				RandSrc += 1
 				rs := rand.NewSource(time.Now().Unix() + RandSrc)
 				ra := rand.New(rs)

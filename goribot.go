@@ -98,38 +98,45 @@ func (s *Spider) Run() {
 	defer s.itemPool.Release()
 	s.handleOnStart()
 	taskRunning := true
-	go func() {
-		for taskRunning {
-			if s.itemPool.Free() > 0 {
-				if i := s.Scheduler.GetItem(); i != nil {
-					err := s.itemPool.Submit(func() {
-						s.handleOnItem(i)
-					})
-					if errors.Is(err, ants.ErrPoolClosed) {
-						panic(ErrRunFinishedSpider)
+	if s.itemPool.Cap() > 0 {
+		go func() {
+			for taskRunning {
+				if s.itemPool.Free() > 0 {
+					if i := s.Scheduler.GetItem(); i != nil {
+						err := s.itemPool.Submit(func() {
+							s.handleOnItem(i)
+						})
+						if errors.Is(err, ants.ErrPoolClosed) {
+							panic(ErrRunFinishedSpider)
+						}
 					}
+				} else {
+					time.Sleep(500 * time.Microsecond)
 				}
-			} else if !s.AutoStop {
-				time.Sleep(5 * time.Second)
+				runtime.Gosched()
 			}
-			runtime.Gosched()
-			time.Sleep(500 * time.Microsecond)
-		}
-	}()
+		}()
+	}
 
 	for {
 		if s.taskPool.Free() > 0 {
 			if t := s.Scheduler.GetTask(); t != nil {
 				err := s.taskPool.Submit(func() {
 					ctx := &Context{
-						Req:   t.Request,
-						Resp:  nil,
-						tasks: []*Task{},
-						items: []interface{}{},
-						Meta:  t.Request.Meta,
-						abort: false,
+						Req:      t.Request,
+						Resp:     nil,
+						tasks:    []*Task{},
+						items:    []interface{}{},
+						Meta:     t.Request.Meta,
+						Handlers: t.Handlers,
+						abort:    false,
 					}
-					defer func() {
+					defer func() { // 回收Task和Item
+						defer func() { // 回收时的错误处理
+							if err := recover(); err != nil {
+								s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
+							}
+						}()
 						for _, i := range ctx.tasks {
 							i := s.handleOnAdd(ctx, i)
 							if i != nil {
@@ -145,6 +152,8 @@ func (s *Spider) Run() {
 						for _, i := range ctx.items {
 							s.Scheduler.AddItem(i)
 						}
+					}()
+					defer func() { // 主回调函数异常处理
 						if err := recover(); err != nil {
 							s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
 						}
@@ -164,10 +173,10 @@ func (s *Spider) Run() {
 							}
 							s.handleOnResp(ctx)
 							for _, fn := range t.Handlers {
-								fn(ctx)
 								if ctx.IsAborted() {
 									break
 								}
+								fn(ctx)
 							}
 						} else {
 							s.handleOnError(ctx, err)
@@ -186,15 +195,15 @@ func (s *Spider) Run() {
 				}
 			}
 		} else {
-			time.Sleep(500 * time.Microsecond)
+			if s.Scheduler.IsTaskEmpty() {
+				time.Sleep(500 * time.Microsecond)
+			}
 		}
 		runtime.Gosched()
 	}
 	taskRunning = false
 	s.handleOnFinish()
 }
-
-//func (s *Spider)SetTaskPoolSize(i int){}
 
 /*************************************************************************************/
 func (s *Spider) OnStart(fn func(s *Spider)) {
@@ -250,10 +259,11 @@ func (s *Spider) OnResp(fn CtxHandlerFun) {
 }
 func (s *Spider) handleOnResp(ctx *Context) {
 	for _, fn := range s.onRespHandlers {
-		fn(ctx)
 		if ctx.IsAborted() {
+			Log.Info("Aborted")
 			return
 		}
+		fn(ctx)
 	}
 }
 

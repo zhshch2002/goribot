@@ -1,8 +1,140 @@
 package goribot
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+	"os"
 	"testing"
+	"time"
 )
+
+func TestSavers(t *testing.T) {
+	cvsFile, err := os.Create("./test.cvs")
+	if err != nil {
+		panic(err)
+	}
+	defer cvsFile.Close()
+	jsonFile, err := os.Create("./test.json")
+	if err != nil {
+		panic(err)
+	}
+	defer cvsFile.Close()
+	s := NewSpider(
+		SaveItemsAsCSV(cvsFile),
+		SaveItemsAsJSON(jsonFile),
+	)
+	s.AddTask(
+		GetReq("https://httpbin.org"),
+		func(ctx *Context) {
+			ctx.AddItem(CsvItem{
+				ctx.Resp.Request.URL.String(),
+				ctx.Resp.Dom.Find("title").Text(),
+			})
+			ctx.AddItem(JsonItem{Data: map[string]interface{}{
+				"url":   ctx.Resp.Request.URL.String(),
+				"title": ctx.Resp.Dom.Find("title").Text(),
+			}})
+			ctx.AddItem(CsvItem{
+				ctx.Resp.Request.URL.String(),
+				ctx.Resp.Dom.Find("title").Text(),
+			})
+			ctx.AddItem(JsonItem{Data: map[string]interface{}{
+				"url":   ctx.Resp.Request.URL.String(),
+				"title": ctx.Resp.Dom.Find("title").Text(),
+			}})
+		},
+	)
+	s.Run()
+}
+
+func TestSpiderLogError(t *testing.T) {
+	s := NewSpider(
+		SpiderLogError(os.Stdout),
+	)
+	s.Downloader.(*BaseDownloader).Client.Timeout = 5 * time.Second
+	s.AddTask(GetReq("https://httpbin.org/get"), func(ctx *Context) {
+		panic("some error!")
+	})
+	s.AddTask(GetReq("https://httpbin.org/get"), func(ctx *Context) {
+		ctx.AddItem(ErrorItem{
+			Ctx: ctx,
+			Msg: "I left a message.",
+		})
+	})
+	s.AddTask(GetReq("https://githab.com/"))
+	s.Run()
+}
+
+func TestRetry(t *testing.T) {
+	ti := 0
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		ti += 1
+		if ti < 2 {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		_, _ = fmt.Fprintf(w, "Hello goribot")
+	})
+	Log.Info("Benchmark Server Start")
+	go func() {
+		err := http.ListenAndServe("127.0.0.1:1229", nil)
+		if err != nil {
+			log.Fatalln("ListenAndServe: ", err)
+		}
+	}()
+
+	got := 0
+	s := NewSpider(
+		Retry(3, http.StatusOK),
+	)
+	s.Downloader.(*BaseDownloader).Client.Timeout = 1 * time.Second
+	s.AddTask(
+		GetReq("http://127.0.0.1:1229"),
+		func(ctx *Context) {
+			Log.Info(ctx.Resp.Text, ctx.IsAborted())
+			if ctx.Resp.Text == "Hello goribot" {
+				got += 1
+			}
+		},
+	)
+
+	s.Run()
+	if ti != 2 {
+		t.Error("Retry times wrong", ti)
+	}
+	if got != 1 {
+		t.Error("wrong response", got)
+	}
+}
+
+func TestRobotsTxt(t *testing.T) {
+	s := NewSpider(
+		RobotsTxt("https://github.com/", "Goribot"),
+	)
+	s.AddTask( // unable to access according to https://github.com/robots.txt
+		GetReq("https://github.com/zhshch2002"),
+		func(ctx *Context) {
+			t.Error("RobotsTxt error")
+		},
+	)
+	s.Run()
+
+	got := false
+	s = NewSpider(
+		RobotsTxt("https://github.com/", "Googlebot"),
+	)
+	s.AddTask( // unable to access according to https://github.com/robots.txt
+		GetReq("https://github.com/zhshch2002/goribot/wiki"),
+		func(ctx *Context) {
+			got = true
+		},
+	)
+	s.Run()
+	if !got {
+		t.Error("didn't get data")
+	}
+}
 
 func TestRefererFiller(t *testing.T) {
 	s := NewSpider(
@@ -102,7 +234,7 @@ func TestRandomUserAgent(t *testing.T) {
 		GetReq("https://httpbin.org/get"),
 		func(ctx *Context) {
 			t.Log("got resp data", ctx.Resp.Text)
-			if ctx.Resp.Json("headers.User-Agent").String() == "Go-http-client/2.0" {
+			if ctx.Resp.Json("headers.User-Agent").String() == "Go-http-Client/2.0" {
 				t.Error("wrong ua setting")
 			} else {
 				got = true

@@ -14,6 +14,8 @@ type Context struct {
 	// Meta the request task created by NewTaskWithMeta func will have a k-y pair
 	Meta map[string]interface{}
 
+	Handlers []CtxHandlerFun
+
 	abort bool
 }
 

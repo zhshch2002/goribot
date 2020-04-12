@@ -224,21 +224,21 @@ type Downloader interface {
 
 // BaseDownloader is default downloader of goribot
 type BaseDownloader struct {
-	c *http.Client
+	Client *http.Client
 }
 
 func NewBaseDownloader() *BaseDownloader {
-	return &BaseDownloader{c: &http.Client{}}
+	return &BaseDownloader{Client: &http.Client{}}
 }
 
 func (s *BaseDownloader) Do(req *Request) (resp *Response, err error) {
 	if req.Err != nil {
 		return nil, err
 	}
-	client := s.c
+	client := s.Client
 
 	if req.ProxyURL != "" {
-		s.c.Transport = &http.Transport{
+		s.Client.Transport = &http.Transport{
 			Proxy: func(request *http.Request) (u *url.URL, err error) {
 				return url.Parse(req.ProxyURL)
 			},

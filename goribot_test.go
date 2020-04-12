@@ -27,7 +27,7 @@ func TestBasic(t *testing.T) {
 		r += 1
 	})
 	s.AddTask(
-		GetReq("https://httpbin.org/get?Goribot%20test=hello%20world").SetParam(map[string]string{
+		GetReq("https://httpbin.org/get").SetParam(map[string]string{
 			"Goribot test": "hello world",
 		}).WithMeta("test", "hello world"),
 		func(ctx *Context) {
@@ -49,7 +49,7 @@ func TestBasic(t *testing.T) {
 	s.OnItem(func(i interface{}) interface{} {
 		t.Log("OnItem")
 		r += 1
-		panic("unexpect error")
+		//panic("unexpect error")
 		return i
 	})
 	s.OnError(func(ctx *Context, err error) {
@@ -63,5 +63,25 @@ func TestBasic(t *testing.T) {
 	s.Run()
 	if r != 8 {
 		t.Error("handlers miss " + fmt.Sprint(r))
+	}
+}
+
+func TestAbort(t *testing.T) {
+	s := NewSpider()
+	got := false
+	s.AddTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			got = true
+			t.Log("got resp data")
+			ctx.Abort()
+		},
+		func(ctx *Context) {
+			t.Error("Abort error")
+		},
+	)
+	s.Run()
+	if !got {
+		t.Error("didn't get response")
 	}
 }

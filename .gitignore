@@ -25,3 +25,7 @@ gen
 # vendor/
 
 /_docs/.vuepress/dist/
+/test.cvs
+/test.json
+/test.log
+_docs/node_modules/
