@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-type CtxHandlerFun func(ctx *Context)
-
 var Log = logging.MustGetLogger("goribot")
 var format = logging.MustStringFormatter(
 	`%{color}%{time:15:04:05.000} %{shortfile} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
@@ -33,6 +31,8 @@ type Task struct {
 func NewTask(request *Request, handlers ...CtxHandlerFun) *Task {
 	return &Task{Request: request, Handlers: handlers}
 }
+
+type CtxHandlerFun func(ctx *Context)
 
 type Spider struct {
 	Scheduler                         Scheduler

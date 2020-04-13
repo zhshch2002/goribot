@@ -3,6 +3,29 @@
 扩展在`Spider`中注册的顺序会影响到实际上扩展 Hook 函数的执行顺序，请关注扩展执行的优先级。
 :::
 
+## Limiter | 限制请求、速率、并发
+```Go
+s := goribot.NewSpider(
+	goribot.Limiter(
+		true, // 开启白名单
+		&goribot.LimitRule{
+			Regexp: "httpbin.(org|com)", // host 正则表达式（👇正则与 Glob 二选一）
+			Glob:   "*.httpbin.org",     // host Glob 表达式，参考 https://github.com/gobwas/glob
+			// 👇是否允许该规则下的请求
+			Allow:       goribot.Allow,
+			// 👇下列选项只可选一个，重复配置只会生效一个。不使用的选项请留空。
+			Rate:        2,              // 请求速率限制（同host下每秒2个请求，过多请求将阻塞等待）
+			Delay:       5 * time.Second,// 请求间隔延时（同host下每个请求间隔5秒）
+			Parallelism: 3,              // 请求并发量限制（同host下最大并发3个请求）
+		},
+		&goribot.LimitRule{ // 配置多个规则
+			Glob:  "golang.org",
+			Allow: goribot.Allow,
+		}, // ……
+	),
+)
+```
+
 ## SaveItemsAsJSON | 保存 Item 到 JSON 文件
 ```Go
 f, err := os.Create("./test.json")
@@ -93,7 +116,7 @@ s := goribot.NewSpider(
 	goribot.RandomProxy("proxy1","proxy2"),
 )
 ```
-此扩展会随机填充一个 UA 给 UA 为空的请求。
+此扩展会随机选择一个代理地址给没有代理的请求。
 
 ## RandomUserAgent | 随机 UA
 ```Go

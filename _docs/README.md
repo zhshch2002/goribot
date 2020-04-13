@@ -11,12 +11,13 @@ title: 欢迎 Welcome！
 * 高速（单核处理 >1K task/sec）
 * 友善的分布式支持
 * 丰富的扩展支持
-  * 请求去重（👈支持分布式）
-  * Json，csv 存储结果
-  * Robots.txt支持
-  * 记录请求异常
-  * 随机 UA、随机代理
-  * 失败重试
+  * [请求去重](./extensions.html#reqdeduplicate-%e8%af%b7%e6%b1%82%e5%8e%bb%e9%87%8d)（👈支持分布式）
+  * [限制请求、速率、并发](./extensions.html#limiter-%e9%99%90%e5%88%b6%e8%af%b7%e6%b1%82%e3%80%81%e9%80%9f%e7%8e%87%e3%80%81%e5%b9%b6%e5%8f%91)
+  * [Json](./extensions.html#saveitemsasjson-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-json-%e6%96%87%e4%bb%b6)，[CSV](./extensions.html#saveitemsascsv-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-csv-%e6%96%87%e4%bb%b6) 存储结果
+  * [Robots.txt 支持](./extensions.html#robotstxt-robots-txt-%e6%94%af%e6%8c%81)
+  * [记录请求异常](./extensions.html#spiderlogerror-%e8%ae%b0%e5%bd%95%e6%84%8f%e5%a4%96%e5%92%8c%e9%94%99%e8%af%af)
+  * [随机 UA ](./extensions.html#randomuseragent-%e9%9a%8f%e6%9c%ba-ua)、[随机代理](./extensions.html#randomproxy-%e9%9a%8f%e6%9c%ba%e4%bb%a3%e7%90%86)
+  * [失败重试](./extensions.html#retry-%e5%a4%b1%e8%b4%a5%e9%87%8d%e8%af%95)
 * 轻量，适于学习或快速开箱搭建
 
 ::: warning 版本警告
@@ -68,6 +69,7 @@ func main() {
 * [go-logging](https://github.com/op/go-logging)
 * [go-redis](https://github.com/go-redis/redis)
 * [robots](https://github.com/slyrz/robots)
+* [glob](https://github.com/gobwas/glob)
 
 万分感谢以上项目的帮助🙏。
 
@@ -76,7 +78,7 @@ func main() {
 * ~~分布式支持~~
 * 扩展
   * ~~Json、CVS 数据收集~~
-  * site Limiter
+  * ~~Limiter~~
   * ~~随机代理~~
   * ~~错误重试~~
   * ~~过滤响应码~~
