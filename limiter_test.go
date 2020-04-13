@@ -1,9 +1,26 @@
 package goribot
 
 import (
+	"fmt"
+	"log"
+	"net/http"
 	"testing"
 	"time"
 )
+
+func init() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(5 * time.Second)
+		_, _ = fmt.Fprintf(w, "Hello goribot")
+	})
+	Log.Info("Server Start")
+	go func() {
+		err := http.ListenAndServe("127.0.0.1:1229", nil)
+		if err != nil {
+			log.Fatalln("ListenAndServe: ", err)
+		}
+	}()
+}
 
 func TestLimiterDelay(t *testing.T) {
 	start := time.Now()
@@ -45,18 +62,18 @@ func TestLimiterDelay(t *testing.T) {
 }
 
 func TestLimiterRate(t *testing.T) {
-	//start := time.Now()
+	start := time.Now()
 	s := NewSpider(
 		Limiter(true, &LimitRule{
-			Glob: "httpbin.org",
+			Glob: "127.0.0.1:1229",
 			Rate: 2,
 		}),
 	)
 	i := 0
-	for i < 20 {
+	for i < 10 {
 		ii := i
 		s.AddTask(
-			GetReq("https://httpbin.org/get"),
+			GetReq("http://127.0.0.1:1229/"),
 			func(ctx *Context) {
 				Log.Info("got", ii)
 			},
@@ -64,51 +81,32 @@ func TestLimiterRate(t *testing.T) {
 		i += 1
 	}
 	s.Run()
-	//if time.Since(start) < 5*time.Second {
-	//	t.Error("wrong time")
-	//}
+	if time.Since(start) < 20*time.Second {
+		t.Error("wrong time")
+	}
 }
 
 func TestLimiterParallelism(t *testing.T) {
+	start := time.Now()
 	s := NewSpider(
 		Limiter(true, &LimitRule{
-			Glob:        "httpbin.org",
+			Glob:        "127.0.0.1:1229",
 			Parallelism: 1,
 		}),
 	)
-	got := 0
-	s.AddTask(
-		GetReq("https://httpbin.org/get"),
-		func(ctx *Context) {
-			if got != 0 {
-				t.Error("wrong order")
-			}
-			got = 1
-			Log.Info("got", 1)
-		},
-	)
-	s.AddTask(
-		GetReq("https://httpbin.org/get"),
-		func(ctx *Context) {
-			if got != 1 {
-				t.Error("wrong order")
-			}
-			got = 2
-			Log.Info("got", 2)
-		},
-	)
-	s.AddTask(
-		GetReq("https://httpbin.org/get"),
-		func(ctx *Context) {
-			if got != 2 {
-				t.Error("wrong order")
-			}
-			got = 3
-			Log.Info("got", 3)
-		},
-	)
+	i := 0
+	for i < 5 {
+		ii := i
+		s.AddTask(
+			GetReq("http://127.0.0.1:1229/"),
+			func(ctx *Context) {
+				Log.Info("got", ii)
+			},
+		)
+		i += 1
+	}
 	s.Run()
-	if got != 3 {
-		t.Error("lost response")
+	if time.Since(start) < 20*time.Second {
+		t.Error("wrong time")
 	}
 }
