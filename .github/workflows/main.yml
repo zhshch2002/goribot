@@ -20,6 +20,8 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Run Unit tests.
+        env:
+          DISABLE_SAVER_TEST: Y
         run: go test -short -coverprofile coverage.txt
 
       - name: Upload Coverage report to CodeCov
@@ -41,6 +43,8 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Run Unit tests.
+        env:
+          DISABLE_SAVER_TEST: Y
         run: go test -short -coverprofile coverage.txt
 
       - name: Upload Coverage report to CodeCov

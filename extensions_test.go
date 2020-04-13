@@ -10,6 +10,9 @@ import (
 )
 
 func TestSavers(t *testing.T) {
+	if os.Getenv("DISABLE_SAVER_TEST") != "" {
+		return
+	}
 	cvsFile, err := os.Create("./test.cvs")
 	if err != nil {
 		panic(err)
