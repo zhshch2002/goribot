@@ -53,6 +53,7 @@ func main() {
 				if u := sel.AttrOr("href", ""); u !="" {
                     // 👇 注意在这里不是 s.AddTask 而是 ctx.AddTask
 					ctx.AddTask(goribot.GetReq(u), h)
+					// ☝ 蜘蛛会根据ctx里的信息自动处理相对地址，无需手动处理
 				}
 			})
 		}
@@ -324,7 +325,8 @@ type Context struct {
 
 Goribot 内置了基于这两个接口的一些数据收集插件，如下：
 
-* TODO （待会再写😜）
+* [SaveItemsAsJson](./extensions.html#saveitemsasjson-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-json-%e6%96%87%e4%bb%b6)
+* [SaveItemsAsCSV](./extensions.html#saveitemsascsv-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-csv-%e6%96%87%e4%bb%b6)
 
 ## 写一个 Goribot 扩展吧！
 

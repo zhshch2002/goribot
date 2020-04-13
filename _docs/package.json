@@ -3,5 +3,8 @@
     "dev": "vuepress dev .",
     "build": "vuepress build ."
   },
-  "author": "zhshch"
+  "author": "zhshch",
+  "devDependencies": {
+    "@vuepress/plugin-google-analytics": "^1.4.0"
+  }
 }

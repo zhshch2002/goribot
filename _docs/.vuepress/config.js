@@ -13,8 +13,17 @@ module.exports = {
         // },
     },
     head: [
+        ['script', { src: "https://www.googletagmanager.com/gtag/js?id=UA-131918267-5", async: true }],
+        ['script', {},
+            " window.dataLayer = window.dataLayer || [];\
+                function gtag(){dataLayer.push(arguments);}\
+                gtag('js', new Date());\
+                gtag('config', 'UA-131918267-5');"],
         ['link', { rel: 'icon', href: '/favicon.ico' }],
     ],
+    // plugins: [
+    //     ['@vuepress/google-analytics', { 'ga': 'UA-131918267-5' }]
+    // ],
     themeConfig: {
         repo: 'zhshch2002/goribot',
         editLinks: true,
