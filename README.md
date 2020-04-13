@@ -15,13 +15,13 @@
 * 高速（单核处理 >1K task/sec）
 * 友善的分布式支持
 * 丰富的扩展支持
-  * [请求去重](./extensions.html#reqdeduplicate-%e8%af%b7%e6%b1%82%e5%8e%bb%e9%87%8d)（👈支持分布式）
-  * [限制请求、速率、并发](./extensions.html#limiter-%e9%99%90%e5%88%b6%e8%af%b7%e6%b1%82%e3%80%81%e9%80%9f%e7%8e%87%e3%80%81%e5%b9%b6%e5%8f%91)
-  * [Json](./extensions.html#saveitemsasjson-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-json-%e6%96%87%e4%bb%b6)，[CSV](./extensions.html#saveitemsascsv-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-csv-%e6%96%87%e4%bb%b6) 存储结果
-  * [Robots.txt 支持](./extensions.html#robotstxt-robots-txt-%e6%94%af%e6%8c%81)
-  * [记录请求异常](./extensions.html#spiderlogerror-%e8%ae%b0%e5%bd%95%e6%84%8f%e5%a4%96%e5%92%8c%e9%94%99%e8%af%af)
-  * [随机 UA ](./extensions.html#randomuseragent-%e9%9a%8f%e6%9c%ba-ua)、[随机代理](./extensions.html#randomproxy-%e9%9a%8f%e6%9c%ba%e4%bb%a3%e7%90%86)
-  * [失败重试](./extensions.html#retry-%e5%a4%b1%e8%b4%a5%e9%87%8d%e8%af%95)
+  * [请求去重](./_docs/extensions.html#reqdeduplicate-%e8%af%b7%e6%b1%82%e5%8e%bb%e9%87%8d)（👈支持分布式）
+  * [限制请求、速率、并发](./_docs/extensions.html#limiter-%e9%99%90%e5%88%b6%e8%af%b7%e6%b1%82%e3%80%81%e9%80%9f%e7%8e%87%e3%80%81%e5%b9%b6%e5%8f%91)
+  * [Json](./_docs/extensions.html#saveitemsasjson-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-json-%e6%96%87%e4%bb%b6)，[CSV](./_docs/extensions.html#saveitemsascsv-%e4%bf%9d%e5%ad%98-item-%e5%88%b0-csv-%e6%96%87%e4%bb%b6) 存储结果
+  * [Robots.txt 支持](./_docs/extensions.html#robotstxt-robots-txt-%e6%94%af%e6%8c%81)
+  * [记录请求异常](./_docs/extensions.html#spiderlogerror-%e8%ae%b0%e5%bd%95%e6%84%8f%e5%a4%96%e5%92%8c%e9%94%99%e8%af%af)
+  * [随机 UA ](./_docs/extensions.html#randomuseragent-%e9%9a%8f%e6%9c%ba-ua)、[随机代理](./_docs/extensions.html#randomproxy-%e9%9a%8f%e6%9c%ba%e4%bb%a3%e7%90%86)
+  * [失败重试](./_docs/extensions.html#retry-%e5%a4%b1%e8%b4%a5%e9%87%8d%e8%af%95)
 * 轻量，适于学习或快速开箱搭建
 
 > 版本警告
@@ -59,7 +59,7 @@ func main() {
 ```
 
 ## 🎉完成
-至此你已经可以使用 Goribot 了。更多内容请从 [开始使用](./get-start) 了解。
+至此你已经可以使用 Goribot 了。更多内容请从 [开始使用](./_docs/get-start) 了解。
 
 ## 🙏感谢
 
