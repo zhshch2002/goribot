@@ -1,7 +1,6 @@
 package goribot
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/csv"
 	"encoding/json"
@@ -23,8 +22,7 @@ type JsonItem struct {
 // SaveItemsAsCSV is a extension save items to a json file
 func SaveItemsAsJSON(f *os.File) func(s *Spider) {
 	lock := sync.Mutex{}
-	var buf bytes.Buffer
-	buf.WriteString("[")
+	f.WriteString("[")
 	gotFrist := false
 	return func(s *Spider) {
 		s.OnItem(func(i interface{}) interface{} {
@@ -32,7 +30,7 @@ func SaveItemsAsJSON(f *os.File) func(s *Spider) {
 				lock.Lock()
 				defer lock.Unlock()
 				if gotFrist {
-					_, err := buf.WriteString(",")
+					_, err := f.WriteString(",")
 					if err != nil {
 						Log.Error(err)
 					}
@@ -43,7 +41,7 @@ func SaveItemsAsJSON(f *os.File) func(s *Spider) {
 				if err != nil {
 					Log.Error(err)
 				}
-				_, err = buf.Write(res)
+				_, err = f.Write(res)
 				if err != nil {
 					Log.Error(err)
 				}
@@ -52,8 +50,7 @@ func SaveItemsAsJSON(f *os.File) func(s *Spider) {
 			return i
 		})
 		s.OnFinish(func(s *Spider) {
-			buf.WriteString("]")
-			_, err := f.Write(buf.Bytes())
+			_, err := f.WriteString("]")
 			if err != nil {
 				Log.Error(err)
 			}
@@ -66,8 +63,7 @@ type CsvItem []string
 // SaveItemsAsCSV is a extension save items to a csv file
 func SaveItemsAsCSV(f *os.File) func(s *Spider) {
 	lock := sync.Mutex{}
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
+	w := csv.NewWriter(f)
 	return func(s *Spider) {
 		s.OnItem(func(i interface{}) interface{} {
 			if data, ok := i.(CsvItem); ok {
@@ -82,10 +78,6 @@ func SaveItemsAsCSV(f *os.File) func(s *Spider) {
 		})
 		s.OnFinish(func(s *Spider) {
 			w.Flush()
-			_, err := f.Write(buf.Bytes())
-			if err != nil {
-				Log.Error(err)
-			}
 		})
 	}
 }
