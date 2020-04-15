@@ -13,12 +13,13 @@ module.exports = {
         // },
     },
     head: [
-        ['script', { src: "https://www.googletagmanager.com/gtag/js?id=UA-131918267-5", async: true }],
-        ['script', {},
-            " window.dataLayer = window.dataLayer || [];\
-                function gtag(){dataLayer.push(arguments);}\
-                gtag('js', new Date());\
-                gtag('config', 'UA-131918267-5');"],
+        ['script', { src: "https://s4.cnzz.com/z_stat.php?id=1278603298&web_id=1278603298", async: true }],
+        // ['script', { src: "https://www.googletagmanager.com/gtag/js?id=UA-131918267-5", async: true }],
+        // ['script', {},
+        //     " window.dataLayer = window.dataLayer || [];\
+        //         function gtag(){dataLayer.push(arguments);}\
+        //         gtag('js', new Date());\
+        //         gtag('config', 'UA-131918267-5');"],
         ['link', { rel: 'icon', href: '/favicon.ico' }],
     ],
     // plugins: [
