@@ -19,6 +19,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v1
 
+      - name: actions-setup-redis
+        uses: shogo82148/actions-setup-redis@v1.0.1
+
       - name: Run Unit tests.
         env:
           DISABLE_SAVER_TEST: Y
@@ -41,6 +44,9 @@ jobs:
 
       - name: Check out code
         uses: actions/checkout@v1
+
+      - name: actions-setup-redis
+        uses: shogo82148/actions-setup-redis@v1.0.1
 
       - name: Run Unit tests.
         env:
