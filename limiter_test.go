@@ -2,7 +2,6 @@ package goribot
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -17,7 +16,7 @@ func init() {
 	go func() {
 		err := http.ListenAndServe("127.0.0.1:1229", nil)
 		if err != nil {
-			log.Fatalln("ListenAndServe: ", err)
+			Log.Error("ListenAndServe: ", err)
 		}
 	}()
 }
@@ -56,7 +55,7 @@ func TestLimiterDelay(t *testing.T) {
 		},
 	)
 	s.Run()
-	if time.Since(start) < 10*time.Second {
+	if time.Since(start) <= 10*time.Second {
 		t.Error("wrong time")
 	}
 }
@@ -81,7 +80,7 @@ func TestLimiterRate(t *testing.T) {
 		i += 1
 	}
 	s.Run()
-	if time.Since(start) < 20*time.Second {
+	if time.Since(start) <= 5*time.Second {
 		t.Error("wrong time")
 	}
 }
@@ -106,7 +105,7 @@ func TestLimiterParallelism(t *testing.T) {
 		i += 1
 	}
 	s.Run()
-	if time.Since(start) < 20*time.Second {
+	if time.Since(start) <= 20*time.Second {
 		t.Error("wrong time")
 	}
 }

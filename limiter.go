@@ -2,6 +2,7 @@ package goribot
 
 import (
 	"github.com/gobwas/glob"
+	"math/rand"
 	"net/url"
 	"regexp"
 	"strings"
@@ -26,6 +27,7 @@ type LimitRule struct {
 	Rate               int64
 	rateLeft           int64
 	Delay              time.Duration
+	RandomDelay        time.Duration
 	lastReqTime        time.Time
 	compiledRegexp     *regexp.Regexp
 	compiledGlob       glob.Glob
@@ -65,17 +67,22 @@ func Limiter(WhiteList bool, rules ...*LimitRule) func(s *Spider) {
 		}
 	}()
 	return func(s *Spider) {
-		s.Downloader.OnReq(func(req *Request) *Request {
+		s.Downloader.AddMiddleware(func(req *Request, next func(req *Request) (resp *Response, err error)) (resp *Response, err error) {
 			for k, r := range rules {
 				if r.Match(req.URL) {
-					if r.Delay > 0 {
+					if r.Delay > 0 || r.RandomDelay > 0 {
 						rules[k].delayLock.Lock()
 						since := time.Since(r.lastReqTime)
 						if since < r.Delay {
 							time.Sleep(r.Delay - since)
 						}
+						if r.RandomDelay > 0 {
+							ra := rand.New(rand.NewSource(time.Now().Unix()))
+							time.Sleep(time.Duration(ra.Int63n(int64(r.RandomDelay))))
+						}
 						rules[k].lastReqTime = time.Now()
 						rules[k].delayLock.Unlock()
+						return next(req)
 					} else if r.Rate > 0 {
 						wait := true
 						for wait {
@@ -86,6 +93,7 @@ func Limiter(WhiteList bool, rules ...*LimitRule) func(s *Spider) {
 								time.Sleep(500 * time.Microsecond)
 							}
 						}
+						return next(req)
 					} else if r.Parallelism > 0 {
 						wait := true
 						for wait {
@@ -96,22 +104,15 @@ func Limiter(WhiteList bool, rules ...*LimitRule) func(s *Spider) {
 								time.Sleep(500 * time.Microsecond)
 							}
 						}
-					}
-					return req
-				}
-			}
-			return req
-		})
-		s.Downloader.OnResp(func(resp *Response) *Response {
-			for k, r := range rules {
-				if r.Match(resp.Request.URL) {
-					if r.Parallelism > 0 {
+						resp, err := next(req)
 						atomic.AddInt64(&rules[k].workingParallelism, -1)
+						return resp, err
+					} else {
+						return next(req)
 					}
-					return resp
 				}
 			}
-			return resp
+			return next(req)
 		})
 		s.OnAdd(func(ctx *Context, t *Task) *Task {
 			for _, r := range rules {

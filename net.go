@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"errors"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/saintfish/chardet"
 	"github.com/tidwall/gjson"
@@ -14,8 +13,6 @@ import (
 	"net/url"
 	"strings"
 )
-
-var ErrDownloadAbortByHandlers = errors.New("downloader abort by handlers")
 
 // DownloaderErr is a error create by Downloader
 type DownloaderErr struct {
@@ -223,56 +220,24 @@ func (s *Response) Json(q string) gjson.Result {
 // Downloader tool download response from request
 type Downloader interface {
 	Do(req *Request) (resp *Response, err error)
-	OnReq(fn func(req *Request) *Request)
-	OnResp(fn func(resp *Response) *Response)
+	AddMiddleware(func(req *Request, next func(req *Request) (resp *Response, err error)) (resp *Response, err error))
 }
 
 // BaseDownloader is default downloader of goribot
 type BaseDownloader struct {
-	Client         *http.Client
-	onRespHandlers []func(resp *Response) *Response
-	onReqHandlers  []func(resp *Request) *Request
+	Client   *http.Client
+	handlers []func(req *Request, next func(req *Request) (resp *Response, err error)) (resp *Response, err error)
 }
 
 func NewBaseDownloader() *BaseDownloader {
 	return &BaseDownloader{Client: &http.Client{}}
 }
 
-/*************************************************************************************/
-func (s *BaseDownloader) OnReq(fn func(req *Request) *Request) {
-	s.onReqHandlers = append(s.onReqHandlers, fn)
-}
-func (s *BaseDownloader) handleOnReq(req *Request) *Request {
-	for _, fn := range s.onReqHandlers {
-		req = fn(req)
-		if req == nil {
-			return req
-		}
-	}
-	return req
+func (s *BaseDownloader) AddMiddleware(fn func(req *Request, next func(*Request) (*Response, error)) (*Response, error)) {
+	s.handlers = append(s.handlers, fn)
 }
 
-/*************************************************************************************/
-func (s *BaseDownloader) OnResp(fn func(resp *Response) *Response) {
-	s.onRespHandlers = append(s.onRespHandlers, fn)
-}
-func (s *BaseDownloader) handleOnResp(resp *Response) *Response {
-	for _, fn := range s.onRespHandlers {
-		resp = fn(resp)
-		if resp == nil {
-			return resp
-		}
-	}
-	return resp
-}
-
-/*************************************************************************************/
-func (s *BaseDownloader) Do(req *Request) (resp *Response, err error) {
-	req = s.handleOnReq(req)
-	if req == nil {
-		return nil, ErrDownloadAbortByHandlers
-	}
-
+func (s *BaseDownloader) defaultHandler(req *Request) (resp *Response, err error) {
 	if req.Err != nil {
 		return nil, err
 	}
@@ -313,9 +278,18 @@ func (s *BaseDownloader) Do(req *Request) (resp *Response, err error) {
 		return nil, DownloaderErr{err, req, resp}
 	}
 	_ = resp.DecodeAndParse()
-	resp = s.handleOnResp(resp)
-	if resp == nil {
-		return nil, ErrDownloadAbortByHandlers
-	}
 	return resp, nil
+}
+
+func (s *BaseDownloader) nextHandler(i int) func(req *Request) (resp *Response, err error) {
+	if i == -1 {
+		return s.defaultHandler
+	}
+	return func(req *Request) (resp *Response, err error) {
+		return s.handlers[i](req, s.nextHandler(i-1))
+	}
+}
+
+func (s *BaseDownloader) Do(req *Request) (resp *Response, err error) {
+	return s.nextHandler(len(s.handlers) - 1)(req)
 }

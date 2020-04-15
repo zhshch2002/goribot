@@ -1,6 +1,7 @@
 package goribot
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -86,5 +87,27 @@ func TestNetDecode(t *testing.T) {
 	t.Log("got resp data", resp.Text)
 	if !strings.Contains(resp.Text, "统计用区划代码") {
 		t.Error("wrong resp data")
+	}
+}
+
+func TestMiddleware(t *testing.T) {
+	d := NewBaseDownloader()
+	got := false
+	d.AddMiddleware(func(req *Request, next func(req *Request) (resp *Response, err error)) (resp *Response, err error) {
+		resp, err = next(req)
+		got = true
+		if err == nil {
+			fmt.Println(resp.Text)
+		}
+		return resp, err
+	})
+	resp, err := d.Do(GetReq("https://httpbin.org/get"))
+	if err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println(resp.Text)
+	}
+	if !got {
+		t.Error("middleware error")
 	}
 }
