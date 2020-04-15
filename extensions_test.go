@@ -2,8 +2,8 @@ package goribot
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -72,20 +72,14 @@ func TestSpiderLogError(t *testing.T) {
 func TestRetry(t *testing.T) {
 	ti := 0
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ti += 1
 		if ti < 2 {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		_, _ = fmt.Fprintf(w, "Hello goribot")
-	})
-	Log.Info("Benchmark Server Start")
-	go func() {
-		err := http.ListenAndServe("127.0.0.1:1229", nil)
-		if err != nil {
-			log.Fatalln("ListenAndServe: ", err)
-		}
-	}()
+	}))
+	defer ts.Close()
 
 	got := 0
 	s := NewSpider(
@@ -93,7 +87,7 @@ func TestRetry(t *testing.T) {
 	)
 	s.Downloader.(*BaseDownloader).Client.Timeout = 1 * time.Second
 	s.AddTask(
-		GetReq("http://127.0.0.1:1229"),
+		GetReq(ts.URL),
 		func(ctx *Context) {
 			Log.Info(ctx.Resp.Text, ctx.IsAborted())
 			if ctx.Resp.Text == "Hello goribot" {

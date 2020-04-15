@@ -3,23 +3,10 @@ package goribot
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
-
-func init() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(5 * time.Second)
-		_, _ = fmt.Fprintf(w, "Hello goribot")
-	})
-	Log.Info("Server Start")
-	go func() {
-		err := http.ListenAndServe("127.0.0.1:1229", nil)
-		if err != nil {
-			Log.Error("ListenAndServe: ", err)
-		}
-	}()
-}
 
 func TestLimiterDelay(t *testing.T) {
 	start := time.Now()
@@ -61,10 +48,15 @@ func TestLimiterDelay(t *testing.T) {
 }
 
 func TestLimiterRate(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(5 * time.Second)
+		_, _ = fmt.Fprintf(w, "Hello goribot")
+	}))
+	defer ts.Close()
 	start := time.Now()
 	s := NewSpider(
 		Limiter(true, &LimitRule{
-			Glob: "127.0.0.1:1229",
+			Glob: "*",
 			Rate: 2,
 		}),
 	)
@@ -72,7 +64,7 @@ func TestLimiterRate(t *testing.T) {
 	for i < 10 {
 		ii := i
 		s.AddTask(
-			GetReq("http://127.0.0.1:1229/"),
+			GetReq(ts.URL),
 			func(ctx *Context) {
 				Log.Info("got", ii)
 			},
@@ -86,10 +78,15 @@ func TestLimiterRate(t *testing.T) {
 }
 
 func TestLimiterParallelism(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(5 * time.Second)
+		_, _ = fmt.Fprintf(w, "Hello goribot")
+	}))
+	defer ts.Close()
 	start := time.Now()
 	s := NewSpider(
 		Limiter(true, &LimitRule{
-			Glob:        "127.0.0.1:1229",
+			Glob:        "*",
 			Parallelism: 1,
 		}),
 	)
@@ -97,7 +94,7 @@ func TestLimiterParallelism(t *testing.T) {
 	for i < 5 {
 		ii := i
 		s.AddTask(
-			GetReq("http://127.0.0.1:1229/"),
+			GetReq(ts.URL),
 			func(ctx *Context) {
 				Log.Info("got", ii)
 			},
