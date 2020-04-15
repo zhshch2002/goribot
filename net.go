@@ -223,6 +223,8 @@ type Downloader interface {
 	AddMiddleware(func(req *Request, next func(req *Request) (resp *Response, err error)) (resp *Response, err error))
 }
 
+var D = NewBaseDownloader()
+
 // BaseDownloader is default downloader of goribot
 type BaseDownloader struct {
 	Client   *http.Client
