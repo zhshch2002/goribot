@@ -10,19 +10,24 @@ import (
 )
 
 func TestSavers(t *testing.T) {
+	var cvsFile, jsonFile *os.File
 	if os.Getenv("DISABLE_SAVER_TEST") != "" {
-		return
-	}
-	cvsFile, err := os.Create("./test.cvs")
-	if err != nil {
-		panic(err)
+		cvsFile, _ = os.Open("/dev/null")
+		jsonFile, _ = os.Open("/dev/null")
+	} else {
+		var err error
+		cvsFile, err = os.Create("./test.cvs")
+		if err != nil {
+			panic(err)
+		}
+		jsonFile, err = os.Create("./test.json")
+		if err != nil {
+			panic(err)
+		}
+
 	}
 	defer cvsFile.Close()
-	jsonFile, err := os.Create("./test.json")
-	if err != nil {
-		panic(err)
-	}
-	defer cvsFile.Close()
+	defer jsonFile.Close()
 	s := NewSpider(
 		SaveItemsAsCSV(cvsFile),
 		SaveItemsAsJSON(jsonFile),
@@ -74,7 +79,7 @@ func TestRetry(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ti += 1
-		if ti < 2 {
+		if ti < 3 {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		_, _ = fmt.Fprintf(w, "Hello goribot")
@@ -97,7 +102,7 @@ func TestRetry(t *testing.T) {
 	)
 
 	s.Run()
-	if ti != 2 {
+	if ti != 3 {
 		t.Error("Retry times wrong", ti)
 	}
 	if got != 1 {
@@ -107,7 +112,7 @@ func TestRetry(t *testing.T) {
 
 func TestRobotsTxt(t *testing.T) {
 	s := NewSpider(
-		RobotsTxt("https://github.com/", "Goribot"),
+		RobotsTxt("https://github.com", "Goribot"),
 	)
 	s.AddTask( // unable to access according to https://github.com/robots.txt
 		GetReq("https://github.com/zhshch2002"),
@@ -197,7 +202,9 @@ func TestReqDeduplicate(t *testing.T) {
 		ReqDeduplicate(),
 	)
 	s.AddTask(
-		GetReq("https://httpbin.org/get"),
+		GetReq("https://httpbin.org/get").SetParam(map[string]string{
+			"name": "Goribot",
+		}),
 		func(ctx *Context) {
 			got1 = true
 			t.Log("got first")
@@ -211,7 +218,9 @@ func TestReqDeduplicate(t *testing.T) {
 		},
 	)
 	s.AddTask(
-		GetReq("https://httpbin.org/get"),
+		GetReq("https://httpbin.org/get").SetParam(map[string]string{
+			"name": "Goribot",
+		}),
 		func(ctx *Context) {
 			t.Error("Deduplicate error")
 		},
@@ -242,4 +251,26 @@ func TestRandomUserAgent(t *testing.T) {
 	if !got {
 		t.Error("didn't get data")
 	}
+}
+
+func TestSpiderLogPrint(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		_, _ = fmt.Fprintf(w, "Hello goribot")
+	}))
+	defer ts.Close()
+	s := NewSpider(SpiderLogPrint())
+	s.SetTaskPoolSize(2)
+	i := 0
+	for i < 20 {
+		ii := i
+		s.AddTask(
+			GetReq(ts.URL),
+			func(ctx *Context) {
+				Log.Info("got", ii)
+			},
+		)
+		i += 1
+	}
+	s.Run()
 }

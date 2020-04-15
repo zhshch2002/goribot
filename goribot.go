@@ -134,6 +134,7 @@ func (s *Spider) Run() {
 					defer func() { // 回收Task和Item
 						defer func() { // 回收时的错误处理
 							if err := recover(); err != nil {
+								Log.Error("recovered from error", err)
 								s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
 							}
 						}()
@@ -155,6 +156,7 @@ func (s *Spider) Run() {
 					}()
 					defer func() { // 主回调函数异常处理
 						if err := recover(); err != nil {
+							Log.Error("recovered from error", err)
 							s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
 						}
 					}()
