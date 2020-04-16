@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 )
@@ -224,6 +225,7 @@ type Downloader interface {
 }
 
 var D = NewBaseDownloader()
+var Do = D.Do
 
 // BaseDownloader is default downloader of goribot
 type BaseDownloader struct {
@@ -232,7 +234,8 @@ type BaseDownloader struct {
 }
 
 func NewBaseDownloader() *BaseDownloader {
-	return &BaseDownloader{Client: &http.Client{}}
+	j, _ := cookiejar.New(nil)
+	return &BaseDownloader{Client: &http.Client{Jar: j}}
 }
 
 func (s *BaseDownloader) AddMiddleware(fn func(req *Request, next func(*Request) (*Response, error)) (*Response, error)) {
