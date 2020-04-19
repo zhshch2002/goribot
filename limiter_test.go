@@ -106,3 +106,59 @@ func TestLimiterParallelism(t *testing.T) {
 		t.Error("wrong time")
 	}
 }
+
+func TestMaxReq(t *testing.T) {
+	s := NewSpider(
+		Limiter(true, &LimitRule{
+			Glob:   "httpbin.org",
+			MaxReq: 3,
+		}),
+	)
+	got := 0
+	i := 0
+	for i < 5 {
+		ii := i
+		s.AddTask(
+			GetReq("https://httpbin.org/get"),
+			func(ctx *Context) {
+				Log.Info("got", ii)
+				got += 1
+			},
+		)
+		i += 1
+	}
+	s.Run()
+	if got != 3 {
+		t.Error("wrong req got", got)
+	}
+}
+
+func TestMaxDepth(t *testing.T) {
+	s := NewSpider(
+		Limiter(true, &LimitRule{
+			Glob:     "httpbin.org",
+			MaxDepth: 2,
+		}),
+	)
+	got := 0
+	s.AddTask(
+		GetReq("https://httpbin.org/get"),
+		func(ctx *Context) {
+			got += 1
+			ctx.AddTask(GetReq("https://httpbin.org/get"), func(ctx *Context) {
+				got += 1
+				ctx.AddTask(GetReq("https://httpbin.org/get"), func(ctx *Context) {
+					got += 1
+					ctx.AddTask(GetReq("https://httpbin.org/get"), func(ctx *Context) {
+						got += 1
+					})
+				})
+			})
+		},
+	)
+
+	s.Run()
+	if got != 2 {
+		t.Error("wrong req got", got)
+	}
+}

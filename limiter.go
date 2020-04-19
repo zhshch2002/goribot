@@ -19,7 +19,7 @@ const (
 	Disallow
 )
 
-type LimitRule struct {
+type LimitRule struct { // TODO Depth limiter
 	Regexp, Glob       string
 	Allow              LimitRuleAllow
 	Parallelism        int64
@@ -28,6 +28,9 @@ type LimitRule struct {
 	rateLeft           int64
 	Delay              time.Duration
 	RandomDelay        time.Duration
+	MaxReq             int64
+	reqLeft            int64
+	MaxDepth           int64
 	lastReqTime        time.Time
 	compiledRegexp     *regexp.Regexp
 	compiledGlob       glob.Glob
@@ -50,6 +53,7 @@ func Limiter(WhiteList bool, rules ...*LimitRule) func(s *Spider) {
 			rules[k].Allow = Allow
 		}
 		rules[k].rateLeft = r.Rate
+		rules[k].reqLeft = r.MaxReq
 		rules[k].delayLock = sync.Mutex{}
 		if rules[k].Glob != "" {
 			rules[k].compiledGlob = glob.MustCompile(rules[k].Glob)
@@ -115,13 +119,25 @@ func Limiter(WhiteList bool, rules ...*LimitRule) func(s *Spider) {
 			return next(req)
 		})
 		s.OnAdd(func(ctx *Context, t *Task) *Task {
-			for _, r := range rules {
+			for k, r := range rules {
 				if r.Match(t.Request.URL) {
-					if r.Allow == Allow {
-						return t
-					} else {
+					if r.Allow == Disallow {
 						return nil
 					}
+					if r.MaxDepth > 0 {
+						//fmt.Println(t.Request.Depth)
+						if int64(t.Request.Depth) > r.MaxDepth {
+							return nil
+						}
+					}
+					if r.MaxReq > 0 {
+						if atomic.LoadInt64(&rules[k].reqLeft) > 0 {
+							atomic.AddInt64(&rules[k].reqLeft, -1)
+						} else {
+							return nil
+						}
+					}
+					return t
 				}
 			}
 			if WhiteList {

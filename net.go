@@ -202,7 +202,7 @@ func (s *Response) DecodeAndParse() error {
 			s.Body = tmpBody
 			s.Text = string(s.Body)
 		}
-		if strings.Contains(contentType, "/html") {
+		if s.IsHTML() {
 			d, err := goquery.NewDocumentFromReader(bytes.NewReader(s.Body))
 			s.Dom = d
 			if err != nil {
@@ -216,6 +216,16 @@ func (s *Response) DecodeAndParse() error {
 // Json returns json result parsed from response
 func (s *Response) Json(q string) gjson.Result {
 	return gjson.Get(s.Text, q)
+}
+
+func (s *Response) IsHTML() bool {
+	contentType := strings.ToLower(s.Header.Get("Content-Type"))
+	return strings.Contains(contentType, "/html")
+}
+
+func (s *Response) IsJSON() bool {
+	contentType := strings.ToLower(s.Header.Get("Content-Type"))
+	return strings.Contains(contentType, "/json")
 }
 
 // Downloader tool download response from request

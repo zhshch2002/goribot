@@ -139,14 +139,14 @@ func (s *Spider) Run() {
 							}
 						}()
 						for _, i := range ctx.tasks {
+							if !i.Request.URL.IsAbs() {
+								i.Request.URL = ctx.Resp.Request.URL.ResolveReference(i.Request.URL)
+							}
+							if i.Request.Depth == -1 {
+								i.Request.Depth = ctx.Req.Depth + 1
+							}
 							i := s.handleOnAdd(ctx, i)
 							if i != nil {
-								if !i.Request.URL.IsAbs() {
-									i.Request.URL = ctx.Resp.Request.URL.ResolveReference(i.Request.URL)
-								}
-								if i.Request.Depth == -1 {
-									i.Request.Depth = ctx.Req.Depth + 1
-								}
 								s.Scheduler.AddTask(i)
 							}
 						}

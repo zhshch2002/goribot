@@ -18,6 +18,9 @@ s := goribot.NewSpider(
 			Delay:       5 * time.Second,// 请求间隔延时（同host下每个请求间隔5秒）
 			RandomDelay: 5 * time.Second,// 随机间隔延时（同host下每个请求间隔[0,5)秒）
 			Parallelism: 3,              // 请求并发量限制（同host下最大并发3个请求）
+			// 👇下列选项可以复用。
+			MaxReq:      3,              // 限制最大请求数
+			MaxDepth:    2,              // 限制最大爬取深度（记种子任务为Depth=1）
 		},
 		&goribot.LimitRule{ // 配置多个规则
 			Glob:  "golang.org",

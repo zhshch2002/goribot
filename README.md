@@ -3,7 +3,7 @@
 
 [完整文档 | Document](https://imagician.net/goribot/)
 
-[![Codecov](https://img.shields.io/codecov/c/gh/zhshch2002/goribot)](https://codecov.io/gh/zhshch2002/goribot)
+[![codecov](https://codecov.io/gh/zhshch2002/goribot/branch/master/graph/badge.svg)](https://codecov.io/gh/zhshch2002/goribot)
 [![go-report](https://goreportcard.com/badge/github.com/zhshch2002/goribot)](https://goreportcard.com/report/github.com/zhshch2002/goribot)
 ![license](https://img.shields.io/github/license/zhshch2002/goribot)
 ![code-size](https://img.shields.io/github/languages/code-size/zhshch2002/goribot.svg)

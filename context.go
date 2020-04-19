@@ -37,9 +37,6 @@ func (c *Context) AddItem(i interface{}) {
 
 // AddTask add a task to new task list. After every handler func return,spider will collect these tasks
 func (c *Context) AddTask(request *Request, handlers ...CtxHandlerFun) {
-	if request.Depth == -1 {
-		request.Depth = 1
-	}
 	t := NewTask(request, handlers...)
 	if t != nil {
 		c.tasks = append(c.tasks, t)
