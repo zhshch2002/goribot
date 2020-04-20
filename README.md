@@ -3,6 +3,8 @@
 
 [完整文档 | Document](https://imagician.net/goribot/)
 
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/zhshch2002/goribot)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/zhshch2002/goribot)
 [![codecov](https://codecov.io/gh/zhshch2002/goribot/branch/master/graph/badge.svg)](https://codecov.io/gh/zhshch2002/goribot)
 [![go-report](https://goreportcard.com/badge/github.com/zhshch2002/goribot)](https://goreportcard.com/report/github.com/zhshch2002/goribot)
 ![license](https://img.shields.io/github/license/zhshch2002/goribot)
