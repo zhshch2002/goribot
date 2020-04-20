@@ -1,5 +1,5 @@
 module.exports = {
-    base: '/goribot/',
+    base: '/',
     locales: {
         '/': {
             lang: 'zh-CN',
@@ -13,7 +13,7 @@ module.exports = {
         // },
     },
     head: [
-        ['script', { src: "https://s4.cnzz.com/z_stat.php?id=1278603298&web_id=1278603298", async: true }],
+        ['script', { src: "https://v1.cnzz.com/z_stat.php?id=1278828640&web_id=1278828640", async: true }],
         // ['script', { src: "https://www.googletagmanager.com/gtag/js?id=UA-131918267-5", async: true }],
         // ['script', {},
         //     " window.dataLayer = window.dataLayer || [];\
