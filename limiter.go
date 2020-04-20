@@ -19,7 +19,7 @@ const (
 	Disallow
 )
 
-type LimitRule struct { // TODO Depth limiter
+type LimitRule struct {
 	Regexp, Glob       string
 	Allow              LimitRuleAllow
 	Parallelism        int64

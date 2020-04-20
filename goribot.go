@@ -3,8 +3,10 @@ package goribot
 import (
 	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/op/go-logging"
 	"github.com/panjf2000/ants/v2"
+	"github.com/tidwall/gjson"
 	"os"
 	"runtime"
 	"time"
@@ -258,6 +260,25 @@ func (s *Spider) handleOnAdd(ctx *Context, t *Task) *Task {
 /*************************************************************************************/
 func (s *Spider) OnResp(fn CtxHandlerFun) {
 	s.onRespHandlers = append(s.onRespHandlers, fn)
+}
+func (s *Spider) OnHTML(selector string, fn func(ctx *Context, sel *goquery.Selection)) {
+	s.onRespHandlers = append(s.onRespHandlers, func(ctx *Context) {
+		if ctx.Resp.Dom != nil {
+			ctx.Resp.Dom.Find(selector).Each(func(i int, selection *goquery.Selection) {
+				fn(ctx, selection)
+			})
+		}
+	})
+}
+func (s *Spider) OnJSON(q string, fn func(ctx *Context, j gjson.Result)) {
+	s.onRespHandlers = append(s.onRespHandlers, func(ctx *Context) {
+		if ctx.Resp.IsJSON() {
+			j := ctx.Resp.Json(q)
+			if j.Exists() {
+				fn(ctx, j)
+			}
+		}
+	})
 }
 func (s *Spider) handleOnResp(ctx *Context) {
 	for _, fn := range s.onRespHandlers {
