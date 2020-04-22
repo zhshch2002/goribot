@@ -14,13 +14,13 @@ s := goribot.NewSpider(
 			// 👇是否允许该规则下的请求
 			Allow:       goribot.Allow,
 			// 👇下列选项只可选一个，重复配置只会生效一个。不使用的选项请留空。
-			Rate:        2,              // 请求速率限制（同host下每秒2个请求，过多请求将阻塞等待）
-			Delay:       5 * time.Second,// 请求间隔延时（同host下每个请求间隔5秒）
-			RandomDelay: 5 * time.Second,// 随机间隔延时（同host下每个请求间隔[0,5)秒）
-			Parallelism: 3,              // 请求并发量限制（同host下最大并发3个请求）
+			Rate:        2,              // 请求速率限制（同 host 下每秒 2 个请求，过多请求将阻塞等待）
+			Delay:       5 * time.Second,// 请求间隔延时（同 host 下每个请求间隔 5 秒）
+			RandomDelay: 5 * time.Second,// 随机间隔延时（同 host 下每个请求间隔 [0,5) 秒）
+			Parallelism: 3,              // 请求并发量限制（同 host 下最大并发 3 个请求）
 			// 👇下列选项可以复用。
 			MaxReq:      3,              // 限制最大请求数
-			MaxDepth:    2,              // 限制最大爬取深度（记种子任务为Depth=1）
+			MaxDepth:    2,              // 限制最大爬取深度（记种子任务为 Depth=1）
 		},
 		&goribot.LimitRule{ // 配置多个规则
 			Glob:  "golang.org",
@@ -104,6 +104,20 @@ s := goribot.NewSpider(
 此扩展可以配置蜘蛛的爬取策略。
 ::: warning 警告
 此扩展只支持使用`goribot.BaseScheduler`调度器。否则将触发`panic`。
+:::
+
+## AddCookieToJar | 向 Cookie Jar 添加 Cookie
+```Go
+s := goribot.NewSpider(
+	goribot.AddCookieToJar("https://httpbin.org/get",&http.Cookie{
+		Name:  "myname",
+		Value: "Goribot",
+	}),
+)
+```
+此扩展可以在请求前向Cookie Jar添加Cookie。
+::: warning 警告
+此扩展只支持使用`goribot.BaseDownloader`下载器。否则将触发`panic`。
 :::
 
 ## ReqDeduplicate | 请求去重
