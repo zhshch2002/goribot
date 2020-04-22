@@ -112,7 +112,8 @@ func (s *Spider) Run() {
 							panic(ErrRunFinishedSpider)
 						}
 					}
-				} else {
+				}
+				if s.Scheduler.IsItemEmpty() {
 					time.Sleep(500 * time.Microsecond)
 				}
 				runtime.Gosched()
@@ -194,14 +195,13 @@ func (s *Spider) Run() {
 				if s.AutoStop {
 					break
 				} else {
-					Log.Info("Waiting for more tasks")
+					//Log.Info("Waiting for more tasks")
 					time.Sleep(5 * time.Second)
 				}
 			}
-		} else {
-			if s.Scheduler.IsTaskEmpty() {
-				time.Sleep(500 * time.Microsecond)
-			}
+		}
+		if s.Scheduler.IsTaskEmpty() {
+			time.Sleep(500 * time.Microsecond)
 		}
 		runtime.Gosched()
 	}
