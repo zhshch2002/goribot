@@ -8,6 +8,8 @@ import (
 	"github.com/op/go-logging"
 	"github.com/slyrz/robots"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -260,6 +262,22 @@ func SetDepthFirst(d bool) func(s *Spider) {
 			panic("spider is not using BaseScheduler from goribot")
 		}
 		s.Scheduler = NewBaseScheduler(d)
+	}
+}
+
+// AddCookieToJar is an extension add a cookie to downloader's cookie jar
+func AddCookieToJar(urlAddr string, cookies ...*http.Cookie) func(s *Spider) {
+	return func(s *Spider) {
+		if d, ok := s.Downloader.(*BaseDownloader); ok {
+			u, err := url.Parse(urlAddr)
+			if err != nil {
+				Log.Error(fmt.Errorf("add cookie to jar fail %w", err))
+			}
+			d.Client.Jar.SetCookies(u, cookies)
+		} else {
+			panic("spider is not using BaseDownloader from goribot")
+		}
+
 	}
 }
 

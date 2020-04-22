@@ -3,6 +3,7 @@ package goribot
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -110,4 +111,27 @@ func TestMiddleware(t *testing.T) {
 	if !got {
 		t.Error("middleware error")
 	}
+}
+
+func TestCookieJar(t *testing.T) {
+	i := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if i == 0 {
+			i += 1
+			return
+		}
+		if cookie, err := r.Cookie("Flavor"); err != nil {
+			http.SetCookie(w, &http.Cookie{Name: "Flavor", Value: "Chocolate Chip"})
+		} else {
+			cookie.Value = "Oatmeal Raisin"
+			http.SetCookie(w, cookie)
+		}
+	}))
+	d := NewBaseDownloader()
+	resp, _ := d.Do(GetReq(ts.URL))
+	fmt.Println(resp.Cookies())
+	resp, _ = d.Do(GetReq(ts.URL))
+	fmt.Println(resp.Cookies())
+	resp, _ = d.Do(GetReq(ts.URL))
+	fmt.Println(resp.Cookies())
 }
