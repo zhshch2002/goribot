@@ -153,7 +153,7 @@ func (s *Request) SetParam(p map[string]string) *Request {
 }
 
 // SetParam sets the meta data of request.
-func (s *Request) WithMeta(k, v string) *Request {
+func (s *Request) WithMeta(k string, v interface{}) *Request {
 	s.Meta[k] = v
 	return s
 }
