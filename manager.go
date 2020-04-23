@@ -68,7 +68,7 @@ func (s *Manager) Run() {
 					panic(ErrRunFinishedSpider)
 				}
 			} else if s.itemPool.Running() == 0 {
-				Log.Info("Waiting for more items")
+				//Log.Info("Waiting for more items")
 				time.Sleep(5 * time.Second)
 			}
 		} else {
