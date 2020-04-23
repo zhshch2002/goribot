@@ -127,7 +127,7 @@ func PostJsonReq(urladdr string, requestData interface{}) *Request
 
 ``` Go
 // 设置 Get 参数
-func (s *Request) SetParam(p map[string]string) *Request
+func (s *Request) AddParam(k, v string) *Request
 // 添加 Cookie
 func (s *Request) AddCookie(c *http.Cookie) *Request
 // 设置 Header

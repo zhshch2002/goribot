@@ -140,14 +140,22 @@ func (s *Request) SetUA(ua string) *Request {
 	return s
 }
 
-// SetParam sets query param of request url.
-func (s *Request) SetParam(p map[string]string) *Request {
+// AddParam adds a query param of request url.
+func (s *Request) AddParam(k, v string) *Request {
 	if s.Err == nil {
-		var ps []string
-		for k, v := range p {
-			ps = append(ps, url.QueryEscape(k)+"="+url.QueryEscape(v))
+		if len(s.Request.URL.RawQuery) > 0 {
+			s.Request.URL.RawQuery += "&"
 		}
-		s.Request.URL.RawQuery = strings.Join(ps, "&")
+		s.Request.URL.RawQuery += url.QueryEscape(k) + "=" + url.QueryEscape(v)
+	}
+	return s
+}
+
+// SetParam sets query param of request url.
+// Deprecated: will be remove at next major version
+func (s *Request) SetParam(p map[string]string) *Request {
+	for k, v := range p {
+		s.AddParam(k, v)
 	}
 	return s
 }
