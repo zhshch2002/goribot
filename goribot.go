@@ -9,6 +9,7 @@ import (
 	"github.com/tidwall/gjson"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"time"
 )
 
@@ -136,9 +137,18 @@ func (s *Spider) Run() {
 					}
 					defer func() { // 回收Task和Item
 						defer func() { // 回收时的错误处理
-							if err := recover(); err != nil {
-								Log.Error("recovered from error", err)
-								s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
+							if r := recover(); r != nil {
+								var err error
+								switch x := r.(type) {
+								case string:
+									err = errors.New(x)
+								case error:
+									err = x
+								default:
+									err = errors.New(fmt.Sprintf("%+v", r))
+								}
+								Log.Error("recovered from error", r, "\n", string(debug.Stack()))
+								s.handleOnError(ctx, err)
 							}
 						}()
 						for _, i := range ctx.tasks {
@@ -158,9 +168,18 @@ func (s *Spider) Run() {
 						}
 					}()
 					defer func() { // 主回调函数异常处理
-						if err := recover(); err != nil {
-							Log.Error("recovered from error", err)
-							s.handleOnError(ctx, errors.New(fmt.Sprintf("%+v", err)))
+						if r := recover(); r != nil {
+							var err error
+							switch x := r.(type) {
+							case string:
+								err = errors.New(x)
+							case error:
+								err = x
+							default:
+								err = errors.New(fmt.Sprintf("%+v", r))
+							}
+							Log.Error("recovered from error", r, "\n", string(debug.Stack()))
+							s.handleOnError(ctx, err)
 						}
 					}()
 					req := s.handleOnReq(ctx, t.Request)

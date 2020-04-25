@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -171,12 +172,14 @@ func SpiderLogError(f *os.File) func(s *Spider) {
 				"\n",
 				"Got 'OnError' with url ", ctx.Req.URL, "\n",
 				"Err:", err, "\n",
+				string(debug.Stack()), "\n",
 				"Req Header:", ctx.Req.Header, "Proxy:", ctx.Req.ProxyURL, "Err:", ctx.Req.Err, "\n",
 				func() string {
 					if ctx.Resp != nil {
 						return fmt.Sprint(
 							"Resp Header:", ctx.Resp.Header,
 							" Len:", len(ctx.Resp.Body),
+							"\n",
 							" Text:", ctx.Resp.Text,
 						)
 					}
