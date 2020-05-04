@@ -48,6 +48,8 @@ type Spider struct {
 	onRespHandlers                    []CtxHandlerFun
 	onItemHandlers                    []func(i interface{}) interface{}
 	onErrorHandlers                   []func(ctx *Context, err error)
+	newTask                           chan struct{}
+	isWaiting                         bool
 }
 
 func NewSpider(exts ...func(s *Spider)) *Spider {
@@ -65,6 +67,8 @@ func NewSpider(exts ...func(s *Spider)) *Spider {
 		taskPool:   tp,
 		itemPool:   ip,
 		AutoStop:   true,
+		newTask:    make(chan struct{}),
+		isWaiting:  false,
 	}
 	s.Use(exts...)
 	return s
@@ -87,7 +91,11 @@ func (s *Spider) AddTask(request *Request, handlers ...CtxHandlerFun) {
 	if t != nil {
 		s.Scheduler.AddTask(t)
 	}
-
+	if s.AutoStop == false && s.isWaiting {
+		go func() {
+			s.newTask <- struct{}{}
+		}()
+	}
 }
 
 func (s *Spider) Use(fn ...func(s *Spider)) {
@@ -124,6 +132,7 @@ func (s *Spider) Run() {
 
 	for {
 		if s.taskPool.Free() > 0 {
+			s.isWaiting = false
 			if t := s.Scheduler.GetTask(); t != nil {
 				err := s.taskPool.Submit(func() {
 					ctx := &Context{
@@ -161,6 +170,11 @@ func (s *Spider) Run() {
 							i := s.handleOnAdd(ctx, i)
 							if i != nil {
 								s.Scheduler.AddTask(i)
+								if s.AutoStop == false && s.isWaiting {
+									go func() {
+										s.newTask <- struct{}{}
+									}()
+								}
 							}
 						}
 						for _, i := range ctx.items {
@@ -214,8 +228,13 @@ func (s *Spider) Run() {
 				if s.AutoStop {
 					break
 				} else {
-					//Log.Info("Waiting for more tasks")
-					time.Sleep(5 * time.Second)
+					s.isWaiting = true
+					select {
+					case _ = <-time.After(5 * time.Second):
+						break
+					case _ = <-s.newTask:
+						break
+					}
 				}
 			}
 		}

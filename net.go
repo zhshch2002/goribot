@@ -24,8 +24,11 @@ type DownloaderErr struct {
 	Response *Response
 }
 
-// GetReq creates a get request
-func GetReq(urladdr string) *Request {
+// Deprecated: will be remove at next major version
+var GetReq = Get
+
+// Get creates a get request
+func Get(urladdr string) *Request {
 	req, err := http.NewRequest("GET", urladdr, nil)
 	return &Request{
 		Request:                   req,
@@ -37,8 +40,11 @@ func GetReq(urladdr string) *Request {
 	}
 }
 
-// PostReq creates a post request
-func PostReq(urladdr string, body io.Reader) *Request {
+// Deprecated: will be remove at next major version
+var PostReq = Post
+
+// Post creates a post request
+func Post(urladdr string, body io.Reader) *Request {
 	req, err := http.NewRequest("POST", urladdr, body)
 	return &Request{
 		Request:                   req,
