@@ -1,7 +1,13 @@
 # Goribot
 一个分布式友好的轻量的 Golang 爬虫框架。
 
-[完整文档 | Document](https://imagician.net/goribot/)
+[完整文档 | Document](https://wiki.imagician.net/goribot/)
+
+> !! Warning !!
+> 
+> Goribot 已经被迁移到 [Gospider|github.com/zhshch2002/gospider](https://github.com/zhshch2002/gospider)。修复了一些调度问题并分离了网络请求部分到另一个仓库。此仓库会继续保留，建议新朋友使用新的 Gospider。
+>
+> Goribot has been moved to [Gospider|github.com/zhshch2002/gospider](https://github.com/zhshch2002/gospider). Fixed some scheduling issues and separated the network request part to another repo. This repo will continue to be kept, suggest new friends to use the new Gospider.
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/zhshch2002/goribot)
 ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/zhshch2002/goribot)
